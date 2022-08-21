@@ -7,11 +7,13 @@ public class Node {
     private Node parent;
     private Node left;
     private Node right;
+    private int colourGroup;
 
     public Node(String value, Node left, Node right) {
         this.value = value; // Use getSHA256Hash for hash
         this.left = left;
         this.right = right;
+        this.colourGroup = -1;
     }
 
     public String getSHA256Hash(String value) {
@@ -60,5 +62,13 @@ public class Node {
 
     public void setRight(Node right) {
         this.right = right;
+    }
+
+    public int getColourGroup() {
+        return colourGroup;
+    }
+
+    public void setColourGroup(int colourGroup) {
+        this.colourGroup = colourGroup;
     }
 }

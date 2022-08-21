@@ -18,5 +18,9 @@ public class Program {
 
         MerkleTree tree = new MerkleTree(transactions);
         tree.print();
+
+        int[] colourSequence = new int[]{5, 5, 6, 6};
+        tree.colour(colourSequence);
+        tree.print();
     }
 }
