@@ -67,6 +67,7 @@ public class MerkleTree {
         printRecursive(current.getRight());
     }
 
+    /*
     public void colour(int[] colourSequence) {
         if (colourSequence.length != this.allColours.length) {
             System.out.println("Invalid colour sequence.");
@@ -168,6 +169,7 @@ public class MerkleTree {
 
         return avaiColours[maxIdx];
     }
+    */
 
     public String[] getTransactions() {
         return transactions;
@@ -183,5 +185,14 @@ public class MerkleTree {
 
     public void setColourSequence(int[] colourSequence) {
         this.colourSequence = colourSequence;
+    }
+
+    // To calculate the right child, just use currentTransactionCount - getLeftChildTransactionCount
+    public int getLeftChildTransactionCount(int currentTransactionCount, int currentHeight) {
+        int leftTransactions = (int)Math.pow(2, currentHeight - 1);
+        if (currentTransactionCount < leftTransactions)
+            leftTransactions = currentTransactionCount;
+
+        return leftTransactions;
     }
 }
