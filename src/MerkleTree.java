@@ -1,22 +1,17 @@
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.IntStream;
 
 public class MerkleTree {
     private Node root;
     private String[] transactions;
     private int height;
-    private int[] allColours;
-    private int[] colourSequence;
 
     public MerkleTree(String[] transactions) {
         this.transactions = transactions;
+        this.height = (int)Math.ceil(Math.log(transactions.length) / Math.log(2));
         createNodes(transactions);
-
-        this.allColours = new int[this.height];
-        for (int i = 0; i < this.allColours.length; i++)
-            this.allColours[i] = i;
     }
 
     public void createNodes(String[] trans) {
@@ -49,7 +44,6 @@ public class MerkleTree {
             parents.add(parent);
         }
 
-        this.height++;
         createNodesRecursive(parents);
     }
 
@@ -67,110 +61,6 @@ public class MerkleTree {
         printRecursive(current.getRight());
     }
 
-    /*
-    public void colour(int[] colourSequence) {
-        if (colourSequence.length != this.allColours.length) {
-            System.out.println("Invalid colour sequence.");
-            System.exit(2);
-        }
-
-        this.colourSequence = colourSequence;
-        int[] avaiColours = this.allColours.clone();
-        colourRecursive(root, 0, avaiColours);
-    }
-
-    public void colourRecursive(Node current, int h, int[] avaiColours) {
-        if (current == null)
-            return;
-
-        if (h > 0) {
-            // Always pick the first colour (colour with smallest number)
-            int selectColourIdx;
-            if (current.getLeft() == null & h < height) {
-                selectColourIdx = minColourSequenceIndex(allColours);
-            } else {
-                selectColourIdx = minColourSequenceIndex(avaiColours);
-            }
-            current.setColourGroup(selectColourIdx);
-            this.colourSequence[selectColourIdx]--;
-            int[] tempAvaiColours = avaiColours;
-            int tempSelectColourIdx = selectColourIdx;
-            avaiColours = IntStream.range(0, avaiColours.length).filter(i -> tempAvaiColours[i] != tempSelectColourIdx).map(i -> tempAvaiColours[i]).toArray();
-        }
-
-        h++;
-        colourRecursive(current.getLeft(), h, avaiColours.clone());
-        colourRecursive(current.getRight(), h, avaiColours.clone());
-    }
-
-    public int minColourSequenceIndex(int[] avaiColours) {
-        int minIdx = 0;
-
-        for (int i = 0; i < avaiColours.length; i++) {
-            if (colourSequence[avaiColours[i]] < colourSequence[avaiColours[minIdx]] && colourSequence[avaiColours[i]] > 0)
-                minIdx = i;
-        }
-
-        // If this happens, then the algorithm cannot colour the tree using the given colour sequence
-        if (colourSequence[avaiColours[minIdx]] == 0) {
-            System.out.println("Cannot colour");
-            System.exit(3);
-        }
-
-        return avaiColours[minIdx];
-    }
-
-    public void colourIndependently() {
-        // Set all colour count to 0 and increase as the colouring goes
-        this.colourSequence = new int[this.allColours.length];
-        for (int i = 0; i < this.colourSequence.length; i++)
-            this.colourSequence[i] = 0;
-
-        int[] avaiColours = this.allColours.clone();
-        colourIndependentlyRecursive(root, 0, avaiColours);
-
-        System.out.println("Colour sequence for h = " + this.height + " of total " + Arrays.stream(this.colourSequence).sum() + " nodes:");
-        System.out.println("Average colour count of most balanced sequence: " + Arrays.stream(this.colourSequence).average());
-        for (int i = 0; i < this.colourSequence.length; i++)
-            System.out.print(this.colourSequence[i] + " ");
-    }
-
-    public void colourIndependentlyRecursive(Node current, int h, int[] avaiColours) {
-        if (current == null)
-            return;
-
-        if (h > 0) {
-            // Always pick the largest available colour
-            int selectColourIdx;
-            if (current.getLeft() == null & h < height) { // When reaching to fake nodes, pick the smallest one first as the sequence is coming to its final state
-                selectColourIdx = minColourSequenceIndex(allColours);
-            } else {
-                selectColourIdx = maxColourSequenceIndex(avaiColours);
-            }
-            current.setColourGroup(selectColourIdx);
-            this.colourSequence[selectColourIdx]++;
-            int[] tempAvaiColours = avaiColours;
-            int tempSelectColourIdx = selectColourIdx;
-            avaiColours = IntStream.range(0, avaiColours.length).filter(i -> tempAvaiColours[i] != tempSelectColourIdx).map(i -> tempAvaiColours[i]).toArray();
-        }
-
-        h++;
-        colourIndependentlyRecursive(current.getLeft(), h, avaiColours.clone());
-        colourIndependentlyRecursive(current.getRight(), h, avaiColours.clone());
-    }
-
-    public int maxColourSequenceIndex(int[] avaiColours) {
-        int maxIdx = 0;
-
-        for (int i = 0; i < avaiColours.length; i++) {
-            if (colourSequence[avaiColours[i]] > colourSequence[avaiColours[maxIdx]])
-                maxIdx = i;
-        }
-
-        return avaiColours[maxIdx];
-    }
-    */
-
     public String[] getTransactions() {
         return transactions;
     }
@@ -179,20 +69,145 @@ public class MerkleTree {
         this.transactions = transactions;
     }
 
-    public int[] getColourSequence() {
-        return colourSequence;
+    public void colourSplitting(int[] colourSequence) {
+        List<Colour> sequence = new ArrayList<>();
+        for (int i = 0; i < colourSequence.length; i++)
+            sequence.add(new Colour(i, colourSequence[i]));
+
+        int totalBottomNodes = this.transactions.length;
+        if (totalBottomNodes % 2 != 0) // The tree will automatically replicate the last transaction when applicable, but the initial transaction length remains the same
+            totalBottomNodes += 1;
+        colourSplittingRecursive(this.root, this.height, sequence, totalBottomNodes);
+        System.out.println("Coloured successfully.");
     }
 
-    public void setColourSequence(int[] colourSequence) {
-        this.colourSequence = colourSequence;
+    public void colourSplittingRecursive(Node node, int height, List<Colour> sequence, int totalBottomNodes) {
+        if (height >= 1) {
+            Node left = node.getLeft();
+            Node right = node.getRight();
+            if (left != null && right != null) {
+                Colour c1 = sequence.get(0);
+                if (c1.getCount() == 2) {
+                    left.setColourGroup(c1.getColourCode());
+                    right.setColourGroup(c1.getColourCode());
+                } else if (c1.getCount() == 1) { // Imperfect case
+                    left.setColourGroup(c1.getColourCode());
+                    right.setColourGroup(sequence.get(sequence.size() - 1).getColourCode()); // get the last colour (highest number colour)
+                } else {
+                    left.setColourGroup(c1.getColourCode());
+                    right.setColourGroup(sequence.get(1).getColourCode()); // second colour
+                }
+
+                if (height >= 2) {
+                    List<Colour>[] sequences = feasibleSplit(height, sequence);
+                    boolean isPerfectTree = Utility.isPerfectTree(height, totalBottomNodes);
+                    int leftBottomNodes = Utility.getLeftBottomNodes(height - 1, totalBottomNodes);
+                    int rightBottomNodes = totalBottomNodes - leftBottomNodes;
+                    if (!isPerfectTree) { // If this is an imperfect tree, then redistribute the colour sequences
+                        sequences = redistributeSequences(height, totalBottomNodes, sequences);
+                    }
+                    colourSplittingRecursive(left, height - 1, sequences[0], leftBottomNodes);
+                    colourSplittingRecursive(right, height - 1, sequences[1], rightBottomNodes);
+                }
+            }
+        }
     }
 
-    // To calculate the right child, just use currentTransactionCount - getLeftChildTransactionCount
-    public int getLeftChildTransactionCount(int currentTransactionCount, int currentHeight) {
-        int leftTransactions = (int)Math.pow(2, currentHeight - 1);
-        if (currentTransactionCount < leftTransactions)
-            leftTransactions = currentTransactionCount;
+    public List<Colour>[] feasibleSplit(int height, List<Colour> sequence) {
+        Colour c1 = sequence.get(0);
+        Colour c2 = sequence.get(1);
+        List<Colour> sequenceA = new ArrayList<>();
+        List<Colour> sequenceB = new ArrayList<>();
+        if (c1.getCount() == 2) {
+            int sumA = 0;
+            int sumB = 0;
+            for (int i = 1; i < height; i++) {
+                Colour c = sequence.get(i);
+                int a;
+                int b;
+                if (sumA < sumB) {
+                    a = (int)Math.ceil(c.getCount() / 2.0);
+                    b = (int)Math.floor(c.getCount() / 2.0);
+                } else {
+                    a = (int)Math.floor(c.getCount() / 2.0);
+                    b = (int)Math.ceil(c.getCount() / 2.0);
+                }
+                sumA += a;
+                sumB += b;
+                sequenceA.add(new Colour(c.getColourCode(), a));
+                sequenceB.add(new Colour(c.getColourCode(), b));
+            }
+        } else if (c1.getCount() == 1) {// Imperfect case
+            for (int i = 1; i < height; i++) {
+                Colour c = sequence.get(i);
+                if (i == height - 1) // last colour
+                    sequenceA.add(new Colour(c.getColourCode(), c.getCount() - 1));
+                else
+                    sequenceA.add(new Colour(c.getColourCode(), c.getCount()));
+            }
+        } else {
+            int a2 = c2.getCount() - 1;
+            int b2 = c1.getCount() - 1;
+            sequenceA.add(new Colour(c2.getColourCode(), a2));
+            sequenceB.add(new Colour(c1.getColourCode(), b2));
+            if (height >= 3) {
+                Colour c3 = sequence.get(2);
+                int a3 = (int)Math.ceil((c3.getCount() + c1.getCount() - c2.getCount()) / 2.0);
+                int b3 = c2.getCount() - c1.getCount() + (int)Math.floor((c3.getCount() + c1.getCount() - c2.getCount()) / 2.0);
+                sequenceA.add(new Colour(c3.getColourCode(), a3));
+                sequenceB.add(new Colour(c3.getColourCode(), b3));
+                int sumA = a2 + a3;
+                int sumB = b2 + b3;
+                for (int i = 3; i < height; i++) {
+                    Colour ci = sequence.get(i);
+                    int ai;
+                    int bi;
+                    if (sumA < sumB) {
+                        ai = (int)Math.ceil(ci.getCount() / 2.0);
+                        bi = (int)Math.floor(ci.getCount() / 2.0);
+                    } else {
+                        ai = (int)Math.floor(ci.getCount() / 2.0);
+                        bi = (int)Math.ceil(ci.getCount() / 2.0);
+                    }
+                    sumA += ai;
+                    sumB += bi;
+                    sequenceA.add(new Colour(ci.getColourCode(), ai));
+                    sequenceB.add(new Colour(ci.getColourCode(), bi));
+                }
+            }
+        }
 
-        return leftTransactions;
+        List<Colour>[] result = new List[2];
+        Collections.sort(sequenceA);
+        Collections.sort(sequenceB);
+        result[0] = sequenceA;
+        result[1] = sequenceB;
+        return result;
+    }
+
+    public List<Colour>[] redistributeSequences(int height, int totalBottomNodes, List<Colour>[] sequences) {
+        return null;
+    }
+
+    public void validateTreeColouring() {
+        int[] sequence = new int[this.height + 1];
+        for (int i = 0; i < sequence.length; i++) {
+            sequence[i] = -2;
+        }
+        validateTreeColouringRecursive(this.root, 0, sequence);
+    }
+
+    public void validateTreeColouringRecursive(Node current, int height, int[] sequence) {
+        if (current == null)
+            return;
+
+        if (Arrays.stream(sequence).anyMatch(c -> c == current.getColourGroup())) {
+            System.out.println("Invalid colouring!");
+            System.exit(2);
+        }
+
+        sequence[height] = current.getColourGroup();
+        validateTreeColouringRecursive(current.getLeft(), height + 1, sequence.clone());
+        validateTreeColouringRecursive(current.getRight(), height + 1, sequence.clone());
     }
 }

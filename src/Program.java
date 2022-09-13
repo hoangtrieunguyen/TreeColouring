@@ -18,12 +18,16 @@ public class Program {
         for (int i = 0; i < transactions.length; i++)
             transactions[i] = String.valueOf(i);
 
-        int[] sequence = Arrays.stream(args[0].split(",")).mapToInt(Integer::parseInt).toArray();
+        int[] sequence = Arrays.stream(args[1].split(",")).mapToInt(Integer::parseInt).toArray();
         if (!Utility.isValidColourSequence(sequence, txCount)) {
             System.out.println("Invalid colour sequence. This colour sequence is not feasible to use for colouring this tree.");
             System.exit(1);
+        } else {
+            System.out.println("Feasible colour sequence.");
         }
 
         MerkleTree tree = new MerkleTree(transactions);
+        tree.colourSplitting(sequence);
+        tree.validateTreeColouring();
     }
 }
