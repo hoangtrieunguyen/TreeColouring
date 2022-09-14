@@ -19,7 +19,7 @@ public class Program {
             transactions[i] = String.valueOf(i);
 
         int[] sequence = Arrays.stream(args[1].split(",")).mapToInt(Integer::parseInt).toArray();
-        if (!Utility.isValidColourSequence(sequence, txCount)) {
+        if (!Utility.isValidColourSequence(sequence, txCount, Utility.getTreeHeight(Utility.roundUpToEvenNumber(txCount)))) {
             System.out.println("Invalid colour sequence. This colour sequence is not feasible to use for colouring this tree.");
             System.exit(1);
         } else {

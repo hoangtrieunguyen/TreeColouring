@@ -2,6 +2,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class MerkleTree {
     private Node root;
@@ -74,14 +75,14 @@ public class MerkleTree {
         for (int i = 0; i < colourSequence.length; i++)
             sequence.add(new Colour(i, colourSequence[i]));
 
-        int totalBottomNodes = this.transactions.length;
-        if (totalBottomNodes % 2 != 0) // The tree will automatically replicate the last transaction when applicable, but the initial transaction length remains the same
-            totalBottomNodes += 1;
-        colourSplittingRecursive(this.root, this.height, sequence, totalBottomNodes);
+        int bottomNodes = this.transactions.length;
+        if (bottomNodes % 2 != 0) // The tree will automatically replicate the last transaction when applicable, but the initial transaction length remains the same
+            bottomNodes += 1;
+        colourSplittingRecursive(this.root, this.height, sequence, bottomNodes);
         System.out.println("Coloured successfully.");
     }
 
-    public void colourSplittingRecursive(Node node, int height, List<Colour> sequence, int totalBottomNodes) {
+    public void colourSplittingRecursive(Node node, int height, List<Colour> sequence, int bottomNodes) {
         if (height >= 1) {
             Node left = node.getLeft();
             Node right = node.getRight();
@@ -99,13 +100,10 @@ public class MerkleTree {
                 }
 
                 if (height >= 2) {
-                    List<Colour>[] sequences = feasibleSplit(height, sequence);
-                    boolean isPerfectTree = Utility.isPerfectTree(height, totalBottomNodes);
-                    int leftBottomNodes = Utility.getLeftBottomNodes(height - 1, totalBottomNodes);
-                    int rightBottomNodes = totalBottomNodes - leftBottomNodes;
-                    if (!isPerfectTree) { // If this is an imperfect tree, then redistribute the colour sequences
-                        sequences = redistributeSequences(height, totalBottomNodes, sequences);
-                    }
+                    List<Colour>[] sequences = feasibleSplit(height, sequence, bottomNodes);
+                    int leftBottomNodes = Utility.getLeftBottomNodes(height, bottomNodes);
+                    int rightBottomNodes = bottomNodes - leftBottomNodes;
+
                     colourSplittingRecursive(left, height - 1, sequences[0], leftBottomNodes);
                     colourSplittingRecursive(right, height - 1, sequences[1], rightBottomNodes);
                 }
@@ -113,12 +111,32 @@ public class MerkleTree {
         }
     }
 
-    public List<Colour>[] feasibleSplit(int height, List<Colour> sequence) {
+    public List<Colour>[] feasibleSplit(int height, List<Colour> sequence, int bottomNodes) {
         Colour c1 = sequence.get(0);
         Colour c2 = sequence.get(1);
         List<Colour> sequenceA = new ArrayList<>();
         List<Colour> sequenceB = new ArrayList<>();
-        if (c1.getCount() == 2) {
+        int rightBottomNodes = Utility.getRightBottomNodes(height, bottomNodes);
+        boolean noRedistribution = false;
+        if (rightBottomNodes == 0) {
+            noRedistribution = true;
+            for (int i = 1; i < height; i++) {
+                Colour c = sequence.get(i);
+                if (c1.getCount() == 1) {
+                    if (i == height - 1) // last colour
+                        sequenceA.add(new Colour(c.getColourCode(), c.getCount() - 1));
+                    else
+                        sequenceA.add(new Colour(c.getColourCode(), c.getCount()));
+                } else if (c1.getCount() == 2) {
+                    sequenceA.add(new Colour(c.getColourCode(), c.getCount()));
+                } else {
+                    if (i == 1) // second colour
+                        sequenceA.add(new Colour(c.getColourCode(), c.getCount() - 1));
+                    else
+                        sequenceA.add(new Colour(c.getColourCode(), c.getCount()));
+                }
+            }
+        } else if (c1.getCount() == 2) {
             int sumA = 0;
             int sumB = 0;
             for (int i = 1; i < height; i++) {
@@ -137,7 +155,8 @@ public class MerkleTree {
                 sequenceA.add(new Colour(c.getColourCode(), a));
                 sequenceB.add(new Colour(c.getColourCode(), b));
             }
-        } else if (c1.getCount() == 1) {// Imperfect case
+        } else if (c1.getCount() == 1) {// Imperfect only case
+            noRedistribution = true;
             for (int i = 1; i < height; i++) {
                 Colour c = sequence.get(i);
                 if (i == height - 1) // last colour
@@ -182,11 +201,61 @@ public class MerkleTree {
         Collections.sort(sequenceB);
         result[0] = sequenceA;
         result[1] = sequenceB;
+
+        boolean isPerfectTree = Utility.isPerfectTree(height, bottomNodes);
+        if (!isPerfectTree && !noRedistribution) { // If this is an imperfect tree, then redistribute the colour sequences
+            return redistributeSequences(height, bottomNodes, result);
+        }
         return result;
     }
 
-    public List<Colour>[] redistributeSequences(int height, int totalBottomNodes, List<Colour>[] sequences) {
-        return null;
+    /* Validate left sequence against C1 until finding the index of invalid colour, then redistribute from index 0 to that index
+    Sort and validate against feasible colour sequence after each redistribution */
+    public List<Colour>[] redistributeSequences(int height, int bottomNodes, List<Colour>[] sequences) {
+        int childHeight = height - 1;
+        int leftBottomNodes = Utility.getLeftBottomNodes(height, bottomNodes);
+        int rightBottomNodes = bottomNodes - leftBottomNodes;
+        int leftTotalNodes = Utility.calculateTreeNodes(leftBottomNodes, childHeight);
+        int totalRedistributionRequired = leftTotalNodes - sequences[0].stream().mapToInt(c -> c.getCount()).sum(); // total left node - total colour in left sequence
+        for (int i = 0; i < totalRedistributionRequired; i++) {
+            int invalidIndex = findC1InvalidIndex(sequences[0], leftBottomNodes, childHeight);
+            if (invalidIndex == -1) {
+                System.out.println("Something is wrong!");
+                System.exit(2);
+            }
+            // Take any possible colour from index 0 to invalidIndex from the right sequence
+            List<Integer> requiredColour = new ArrayList<>();
+            for (int j = 0; j <= invalidIndex; j++)
+                requiredColour.add(sequences[0].get(j).getColourCode());
+
+            Colour s1Colour = null;
+            Colour s2Colour = null;
+            for (Colour colour: sequences[1]) {
+                int minimumS2ValidColour = Utility.getRequiredNodesAtDepth(rightBottomNodes, childHeight, sequences[1].indexOf(colour) + 1);
+                if (requiredColour.contains(colour.getColourCode()) && colour.getCount() > minimumS2ValidColour) {
+                    s1Colour = sequences[0].stream().filter(c -> c.getColourCode() == colour.getColourCode()).findFirst().get();
+                    s2Colour = colour;
+                    break;
+                }
+            }
+            if (s1Colour == null) {
+                System.out.println("Cannot find suitable colour for redistribution!");
+                System.exit(2);
+            }
+            s1Colour.setCount(s1Colour.getCount() + 1); // Increase 1 in sequence 1 and decrease 1 in sequence 2
+            s2Colour.setCount(s2Colour.getCount() - 1);
+            Collections.sort(sequences[0]);
+            Collections.sort(sequences[1]);
+        }
+        int[] tempS1 = sequences[0].stream().mapToInt(c -> c.getCount()).toArray();
+        int[] tempS2 = sequences[1].stream().mapToInt(c -> c.getCount()).toArray();
+        boolean isValidS1 = Utility.isValidColourSequence(tempS1, leftBottomNodes, childHeight);
+        boolean isValidS2 = Utility.isValidColourSequence(tempS2, rightBottomNodes, childHeight);
+        if (!(isValidS1 && isValidS2)) {
+            System.out.println("Invalid redistribution!!");
+            System.exit(2);
+        }
+        return sequences;
     }
 
     public void validateTreeColouring() {
@@ -200,14 +269,26 @@ public class MerkleTree {
     public void validateTreeColouringRecursive(Node current, int height, int[] sequence) {
         if (current == null)
             return;
-
         if (Arrays.stream(sequence).anyMatch(c -> c == current.getColourGroup())) {
             System.out.println("Invalid colouring!");
             System.exit(2);
         }
-
         sequence[height] = current.getColourGroup();
         validateTreeColouringRecursive(current.getLeft(), height + 1, sequence.clone());
         validateTreeColouringRecursive(current.getRight(), height + 1, sequence.clone());
+    }
+
+    public int findC1InvalidIndex(List<Colour> sequence, int t, int h) {
+        int requiredSum = 0;
+        int actualSum = 0;
+        for (int i = 1; i <= h; i++ ) {
+            int requiredNodes = Utility.getRequiredNodesAtDepth(t, h, i);
+            requiredSum += requiredNodes;
+            actualSum += sequence.get(i - 1).getCount();
+            if (actualSum < requiredSum) {
+                return i - 1;
+            }
+        }
+        return -1; // -1 means no invalid index
     }
 }
