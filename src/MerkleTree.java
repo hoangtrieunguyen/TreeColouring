@@ -2,7 +2,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class MerkleTree {
     private Node root;
@@ -101,6 +100,8 @@ public class MerkleTree {
 
                 if (height >= 2) {
                     List<Colour>[] sequences = feasibleSplit(height, sequence, bottomNodes);
+                    if (sequences == null)
+                        return;
                     int leftBottomNodes = Utility.getLeftBottomNodes(height, bottomNodes);
                     int rightBottomNodes = bottomNodes - leftBottomNodes;
 
@@ -221,7 +222,8 @@ public class MerkleTree {
             int invalidIndex = findC1InvalidIndex(sequences[0], leftBottomNodes, childHeight);
             if (invalidIndex == -1) {
                 System.out.println("Something is wrong!");
-                System.exit(2);
+                //System.exit(2);
+                return null;
             }
             // Take any possible colour from index 0 to invalidIndex from the right sequence
             List<Integer> requiredColour = new ArrayList<>();
@@ -230,7 +232,8 @@ public class MerkleTree {
 
             Colour s1Colour = null;
             Colour s2Colour = null;
-            for (Colour colour: sequences[1]) {
+            for (int k = sequences[1].size() - 1; k >= 0; k--) { // Loop in reverse order to pick up the largest count colour, otherwise picking up from the smallest can break the 2nd sequence
+                Colour colour = sequences[1].get(k);
                 int minimumS2ValidColour = Utility.getRequiredNodesAtDepth(rightBottomNodes, childHeight, sequences[1].indexOf(colour) + 1);
                 if (requiredColour.contains(colour.getColourCode()) && colour.getCount() > minimumS2ValidColour) {
                     s1Colour = sequences[0].stream().filter(c -> c.getColourCode() == colour.getColourCode()).findFirst().get();
@@ -238,9 +241,11 @@ public class MerkleTree {
                     break;
                 }
             }
+
             if (s1Colour == null) {
                 System.out.println("Cannot find suitable colour for redistribution!");
-                System.exit(2);
+                //System.exit(2);
+                return null;
             }
             s1Colour.setCount(s1Colour.getCount() + 1); // Increase 1 in sequence 1 and decrease 1 in sequence 2
             s2Colour.setCount(s2Colour.getCount() - 1);
@@ -253,7 +258,8 @@ public class MerkleTree {
         boolean isValidS2 = Utility.isValidColourSequence(tempS2, rightBottomNodes, childHeight);
         if (!(isValidS1 && isValidS2)) {
             System.out.println("Invalid redistribution!!");
-            System.exit(2);
+            //System.exit(2);
+            return null;
         }
         return sequences;
     }

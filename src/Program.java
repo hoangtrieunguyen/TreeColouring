@@ -1,4 +1,5 @@
 import java.util.Arrays;
+import java.util.List;
 
 public class Program {
 
@@ -15,6 +16,7 @@ public class Program {
         }
 
         String[] transactions = new String[txCount];
+
         for (int i = 0; i < transactions.length; i++)
             transactions[i] = String.valueOf(i);
 
@@ -26,8 +28,17 @@ public class Program {
             System.out.println("Feasible colour sequence.");
         }
 
+        MerkleTree tree0 = new MerkleTree(transactions);
+        tree0.colourSplitting(sequence);
+        tree0.validateTreeColouring();
+
+        List<List<Colour>> list = Utility.getFeasibleSequenceList(txCount);
         MerkleTree tree = new MerkleTree(transactions);
-        tree.colourSplitting(sequence);
-        tree.validateTreeColouring();
+        for (List<Colour> s: list) {
+            Utility.printColourSequence(s);
+            int[] tempSequence = s.stream().mapToInt(c -> c.getCount()).toArray();
+            tree.colourSplitting(tempSequence);
+            tree.validateTreeColouring();
+        }
     }
 }
