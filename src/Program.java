@@ -11,6 +11,8 @@ public class Program {
         }
 
         int txCount = Integer.parseInt(args[0]);
+        // Test
+        txCount = 24;
         if (txCount < 1) {
             System.out.println("Invalid number. The number of transactions must be greater than 0.");
         }
@@ -19,7 +21,7 @@ public class Program {
 
         for (int i = 0; i < transactions.length; i++)
             transactions[i] = String.valueOf(i);
-
+        /*
         int[] sequence = Arrays.stream(args[1].split(",")).mapToInt(Integer::parseInt).toArray();
         if (!Utility.isValidColourSequence(sequence, txCount, Utility.getTreeHeight(Utility.roundUpToEvenNumber(txCount)))) {
             System.out.println("Invalid colour sequence. This colour sequence is not feasible to use for colouring this tree.");
@@ -27,18 +29,19 @@ public class Program {
         } else {
             System.out.println("Feasible colour sequence.");
         }
-
         MerkleTree tree0 = new MerkleTree(transactions);
         tree0.colourSplitting(sequence);
         tree0.validateTreeColouring();
-
+        */
         List<List<Colour>> list = Utility.getFeasibleSequenceList(txCount);
         MerkleTree tree = new MerkleTree(transactions);
+        int counter = 0;
         for (List<Colour> s: list) {
-            Utility.printColourSequence(s);
+            //System.out.print(++counter + ": ");
+            //Utility.printColourSequence(s);
             int[] tempSequence = s.stream().mapToInt(c -> c.getCount()).toArray();
             tree.colourSplitting(tempSequence);
-            tree.validateTreeColouring();
+            //tree.validateTreeColouring();
         }
     }
 }
