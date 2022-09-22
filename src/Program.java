@@ -12,13 +12,12 @@ public class Program {
 
         int txCount = Integer.parseInt(args[0]);
         // Test
-        txCount = 24;
+        txCount = 12;
         if (txCount < 1) {
             System.out.println("Invalid number. The number of transactions must be greater than 0.");
         }
 
         String[] transactions = new String[txCount];
-
         for (int i = 0; i < transactions.length; i++)
             transactions[i] = String.valueOf(i);
         /*

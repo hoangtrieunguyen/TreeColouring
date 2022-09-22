@@ -93,7 +93,8 @@ public class MerkleTree {
                     right.setColourGroup(c1.getColourCode());
                 } else if (c1.getCount() == 1) { // Imperfect case
                     left.setColourGroup(c1.getColourCode());
-                    right.setColourGroup(sequence.get(sequence.size() - 1).getColourCode()); // get the last colour (highest number colour)
+                    int maxIdx = getMaxAvailableColourIndex(sequence, bottomNodes, height);
+                    right.setColourGroup(sequence.get(maxIdx).getColourCode()); // get the colour-able colour with at highest position (highest index)
                 } else {
                     left.setColourGroup(c1.getColourCode());
                     right.setColourGroup(sequence.get(1).getColourCode()); // second colour
@@ -127,7 +128,8 @@ public class MerkleTree {
             for (int i = 1; i < height; i++) {
                 Colour c = sequence.get(i);
                 if (c1.getCount() == 1) {
-                    if (i == height - 1) // last colour
+                    int maxIdx = getMaxAvailableColourIndex(sequence, bottomNodes, height);
+                    if (i == maxIdx) // last colour
                         sequenceA.add(new Colour(c.getColourCode(), c.getCount() - 1));
                     else
                         sequenceA.add(new Colour(c.getColourCode(), c.getCount()));
@@ -158,15 +160,6 @@ public class MerkleTree {
                 sumB += b;
                 sequenceA.add(new Colour(c.getColourCode(), a));
                 sequenceB.add(new Colour(c.getColourCode(), b));
-            }
-        } else if (c1.getCount() == 1) {// Imperfect only case
-            noRedistribution = true;
-            for (int i = 1; i < height; i++) {
-                Colour c = sequence.get(i);
-                if (i == height - 1) // last colour
-                    sequenceA.add(new Colour(c.getColourCode(), c.getCount() - 1));
-                else
-                    sequenceA.add(new Colour(c.getColourCode(), c.getCount()));
             }
         } else {
             int a2 = c2.getCount() - 1;
@@ -234,24 +227,31 @@ public class MerkleTree {
 
             Colour s1Colour = null;
             Colour s2Colour = null;
-            for (int k = sequences[1].size() - 1; k >= 0; k--) { // Loop in reverse order to pick up the largest count colour, otherwise picking up from the smallest can break the 2nd sequence
-                Colour colour = sequences[1].get(k);
-                if (!Utility.validateAgainstCondition3(sequences[1].get(0).getCount(), rightBottomNodes, childHeight)) {
-                    int[] firstIndexes = getPossibleFirstColourIndexes(sequences[1]);
-                    for (int l = 0; l < firstIndexes.length; l++) {
-                        if (requiredColour.contains(sequences[1].get(firstIndexes[l]).getColourCode())) {
-                            colour = sequences[1].get(firstIndexes[l]);
-                            break;
-                        }
+            if (!Utility.validateAgainstCondition3(sequences[1].get(0).getCount(), rightBottomNodes, childHeight)) { // In this case, the first colour is too big, and the sequence is probably in a more balanced stage, start from ascending order to reduce the first possible colour
+                for (int k = 0; k < sequences[1].size(); k++) {
+                    Colour colour = sequences[1].get(k);
+                    int finalK = k;
+                    int s2Sum = sequences[1].stream().filter(c -> sequences[1].indexOf(c) <= finalK).mapToInt(c -> c.getCount()).sum();
+                    int minPosition = getMinPossiblePositions(colour, sequences[1]);
+                    int minS2ReqColour = Utility.getRequiredNodesAtDepth(rightBottomNodes, childHeight, minPosition + 1);
+                    if (requiredColour.contains(colour.getColourCode()) && s2Sum > minS2ReqColour && colour.getCount() > 1) {
+                        s1Colour = sequences[0].stream().filter(c -> c.getColourCode() == colour.getColourCode()).findFirst().get();
+                        s2Colour = colour;
+                        break;
                     }
                 }
-                int minPosition = getMinPossiblePositions(colour, sequences[1]);
-                int minimumS2ValidColour = Utility.getRequiredNodesAtDepth(rightBottomNodes, childHeight, minPosition + 1);
-                if (requiredColour.contains(colour.getColourCode()) && colour.getCount() > minimumS2ValidColour) {
-                    Colour finalColour = colour; // For the stream() usage only
-                    s1Colour = sequences[0].stream().filter(c -> c.getColourCode() == finalColour.getColourCode()).findFirst().get();
-                    s2Colour = colour;
-                    break;
+            } else { // Loop in reverse order to pick up the largest count colour, otherwise picking up from the smallest can break the 2nd sequence
+                for (int k = sequences[1].size() - 1; k >= 0; k--) {
+                    Colour colour = sequences[1].get(k);
+                    int finalK = k;
+                    int s2Sum = sequences[1].stream().filter(c -> sequences[1].indexOf(c) <= finalK).mapToInt(c -> c.getCount()).sum();
+                    int minPosition = getMinPossiblePositions(colour, sequences[1]);
+                    int minS2ReqColour = Utility.getRequiredNodesUpToDepth(rightBottomNodes, childHeight, minPosition + 1);
+                    if (requiredColour.contains(colour.getColourCode()) && s2Sum > minS2ReqColour && colour.getCount() > 1) {
+                        s1Colour = sequences[0].stream().filter(c -> c.getColourCode() == colour.getColourCode()).findFirst().get();
+                        s2Colour = colour;
+                        break;
+                    }
                 }
             }
 
@@ -320,12 +320,14 @@ public class MerkleTree {
         return min;
     }
 
-    public int[] getPossibleFirstColourIndexes(List<Colour> sequence) {
-        List<Integer> result = new ArrayList<>();
-        for (int i = 0; i < sequence.size(); i++) {
-            if (sequence.get(i).getCount() == sequence.get(0).getCount())
-                result.add(i);
+    public int getMaxAvailableColourIndex(List<Colour> sequence, int t, int h) {
+        for (int i = sequence.size() - 1; i >= 0; i--) {
+            int minRequiredNode = Utility.getRequiredNodesUpToDepth(t, h, i + 1);
+            int finalI = i;
+            int sum = sequence.stream().filter(c -> sequence.indexOf(c) <= finalI).mapToInt(c -> c.getCount()).sum();
+            if (sum > minRequiredNode && sequence.get(i).getCount() > 1)
+                return i;
         }
-        return result.stream().mapToInt(i -> i).toArray();
+        return -1; // -1 means no invalid index
     }
 }
