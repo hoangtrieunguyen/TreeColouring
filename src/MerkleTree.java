@@ -227,30 +227,52 @@ public class MerkleTree {
 
             Colour s1Colour = null;
             Colour s2Colour = null;
-            if (!Utility.validateAgainstCondition3(sequences[1].get(0).getCount(), rightBottomNodes, childHeight)) { // In this case, the first colour is too big, and the sequence is probably in a more balanced stage, start from ascending order to reduce the first possible colour
+            boolean s2ValidC3 = Utility.validateAgainstCondition3(sequences[1].get(0).getCount(), rightBottomNodes, childHeight);
+            boolean s2ValidC4 = Utility.validateAgainstCondition4(sequences[1].get(0).getCount(), sequences[1].get(sequences[1].size() - 1).getCount(), rightBottomNodes, childHeight);
+            // We need to exhaust all the c1 in ascending order such that each colour if possible will have the number of colour equals to its depth required
+            if (!s2ValidC3) { // In this case, the first colour is too big, and the sequence is probably in a more balanced stage, start from ascending order to reduce the first possible colour
                 for (int k = 0; k < sequences[1].size(); k++) {
                     Colour colour = sequences[1].get(k);
-                    int finalK = k;
-                    int s2Sum = sequences[1].stream().filter(c -> sequences[1].indexOf(c) <= finalK).mapToInt(c -> c.getCount()).sum();
                     int minPosition = getMinPossiblePositions(colour, sequences[1]);
-                    int minS2ReqColour = Utility.getRequiredNodesAtDepth(rightBottomNodes, childHeight, minPosition + 1);
-                    if (requiredColour.contains(colour.getColourCode()) && s2Sum > minS2ReqColour && colour.getCount() > 1) {
+                    int maxPosition = getMaxPossiblePositions(colour, sequences[1]);
+                    int s2MinSum = sequences[1].stream().filter(c -> sequences[1].indexOf(c) <= minPosition).mapToInt(c -> c.getCount()).sum();
+                    int s2MaxSum = sequences[1].stream().filter(c -> sequences[1].indexOf(c) <= maxPosition).mapToInt(c -> c.getCount()).sum();
+                    int minS2ReqColour = Utility.getRequiredNodesUpToDepth(rightBottomNodes, childHeight, minPosition + 1);
+                    int maxS2ReqColour = Utility.getRequiredNodesUpToDepth(rightBottomNodes, childHeight, maxPosition + 1);
+                    if (requiredColour.contains(colour.getColourCode()) && s2MinSum > minS2ReqColour && s2MaxSum > maxS2ReqColour && colour.getCount() > 1) {
                         s1Colour = sequences[0].stream().filter(c -> c.getColourCode() == colour.getColourCode()).findFirst().get();
                         s2Colour = colour;
                         break;
                     }
                 }
             } else { // Loop in reverse order to pick up the largest count colour, otherwise picking up from the smallest can break the 2nd sequence
-                for (int k = sequences[1].size() - 1; k >= 0; k--) {
-                    Colour colour = sequences[1].get(k);
-                    int finalK = k;
-                    int s2Sum = sequences[1].stream().filter(c -> sequences[1].indexOf(c) <= finalK).mapToInt(c -> c.getCount()).sum();
-                    int minPosition = getMinPossiblePositions(colour, sequences[1]);
-                    int minS2ReqColour = Utility.getRequiredNodesUpToDepth(rightBottomNodes, childHeight, minPosition + 1);
-                    if (requiredColour.contains(colour.getColourCode()) && s2Sum > minS2ReqColour && colour.getCount() > 1) {
-                        s1Colour = sequences[0].stream().filter(c -> c.getColourCode() == colour.getColourCode()).findFirst().get();
-                        s2Colour = colour;
-                        break;
+                if (!s2ValidC4) {
+                    int[] firstIndexes = getAllPossibleFirstColourIdx(sequences[1]);
+                    for (int k = 0; k < firstIndexes.length; k++) {
+                        Colour colour = sequences[1].get(k);
+                        int finalK = k;
+                        int s2Sum = sequences[1].stream().filter(c -> sequences[1].indexOf(c) <= finalK).mapToInt(c -> c.getCount()).sum();
+                        int s2ReqColour = Utility.getRequiredNodesUpToDepth(rightBottomNodes, childHeight, k + 1);
+                        if (requiredColour.contains(colour.getColourCode()) && s2Sum > s2ReqColour && colour.getCount() > 1) {
+                            Colour finalColour1 = colour;
+                            s1Colour = sequences[0].stream().filter(c -> c.getColourCode() == finalColour1.getColourCode()).findFirst().get();
+                            s2Colour = colour;
+                            break;
+                        }
+                    }
+                }
+
+                if (s1Colour == null || s2Colour == null) {
+                    for (int k = sequences[1].size() - 1; k >= 0; k--) {
+                        Colour colour = sequences[1].get(k);
+                        int finalK = k; // for stream() purpose only
+                        int s2Sum = sequences[1].stream().filter(c -> sequences[1].indexOf(c) <= finalK).mapToInt(c -> c.getCount()).sum();
+                        int s2ReqColour = Utility.getRequiredNodesUpToDepth(rightBottomNodes, childHeight, k + 1);
+                        if (requiredColour.contains(colour.getColourCode()) && s2Sum > s2ReqColour && colour.getCount() > 1) {
+                            s1Colour = sequences[0].stream().filter(c -> c.getColourCode() == colour.getColourCode()).findFirst().get();
+                            s2Colour = colour;
+                            break;
+                        }
                     }
                 }
             }
@@ -320,14 +342,33 @@ public class MerkleTree {
         return min;
     }
 
+    public int getMaxPossiblePositions(Colour colour, List<Colour> sequence) {
+        int max = sequence.indexOf(colour);
+        for (int i = sequence.size() - 1; i >= 0; i--) {
+            if (colour.getCount() == sequence.get(i).getCount()) {
+                max = i;
+                break;
+            }
+        }
+        return max;
+    }
+
     public int getMaxAvailableColourIndex(List<Colour> sequence, int t, int h) {
         for (int i = sequence.size() - 1; i >= 0; i--) {
-            int minRequiredNode = Utility.getRequiredNodesUpToDepth(t, h, i + 1);
-            int finalI = i;
-            int sum = sequence.stream().filter(c -> sequence.indexOf(c) <= finalI).mapToInt(c -> c.getCount()).sum();
-            if (sum > minRequiredNode && sequence.get(i).getCount() > 1)
+            int minRequiredNode = Utility.getRequiredNodesAtDepth(t, h, i + 1);
+            if (sequence.get(i).getCount() > minRequiredNode)
                 return i;
         }
         return -1; // -1 means no invalid index
+    }
+
+    public int[] getAllPossibleFirstColourIdx(List<Colour> sequence) {
+        List<Integer> result = new ArrayList<>();
+        int first = 0;
+        for (int i = 0; i < sequence.size(); i++) {
+            if (sequence.get(i).getCount() == sequence.get(first).getCount())
+                result.add(i);
+        }
+        return result.stream().mapToInt(e -> e).toArray();
     }
 }

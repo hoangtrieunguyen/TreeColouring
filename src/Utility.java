@@ -8,8 +8,9 @@ public class Utility {
         boolean isSatisfiedCondition1 = validateAgainstCondition1(sequence, transactionCount, height);
         boolean isSatisfiedCondition2 = Arrays.stream(sequence).sum() == calculateTreeNodes(transactionCount, height);
         boolean isSatisfiedCondition3 = validateAgainstCondition3(sequence[0], transactionCount, height);
+        boolean isSatisfiedCondition4 = validateAgainstCondition4(sequence[0], sequence[sequence.length - 1], transactionCount, height);
         boolean isSequenceSorted = isSequenceSorted(sequence);
-        return isSatisfiedCondition1 && isSatisfiedCondition2 && isSatisfiedCondition3 && isSequenceSorted;
+        return isSatisfiedCondition1 && isSatisfiedCondition2 && isSatisfiedCondition3 && isSatisfiedCondition4 && isSequenceSorted;
     }
 
     public static boolean validateAgainstCondition1(int[] sequence, int transactionCount, int height) {
@@ -32,6 +33,13 @@ public class Utility {
         if (firstColour > (rightLeafNodes + 1))
             return false;
         return true;
+    }
+
+    public static boolean validateAgainstCondition4(int firstColour, int lastColour, int transactionCount, int height) {
+        int duplicateNodes = calculateDuplicateNodes(transactionCount, height);
+        int rightBottomNodes = getRightBottomNodes(height, transactionCount);
+        int secondLastLayerReqNodes = (int)Math.ceil(rightBottomNodes / 2.0);
+        return (firstColour + lastColour) <= (transactionCount + duplicateNodes + secondLastLayerReqNodes + 1);
     }
 
     public static int getRightLeafNodes(int transactionCount, int height) {
@@ -123,6 +131,7 @@ public class Utility {
     // Ref: https://github.com/csa2022/Color-Spliting-Algorithm-CSA/blob/1279c42b3be778199260b7893e799b3eca544bb5/CSA.java#L490
     // t is the number of transaction transaction
     public static List<List<Colour>> getFeasibleSequenceList(int t){
+        t = roundUpToEvenNumber(t);
         int h = getTreeHeight(t);
         int m = 0;  //the current position of colour m
         List<Colour> sequence = new ArrayList<>(h);
