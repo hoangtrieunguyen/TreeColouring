@@ -15,14 +15,12 @@ public class MerkleTree {
         createNodes(transactions);
     }
 
-    public void createNodes(String[] trans) {
+    public void createNodes(String[] transactions) {
         List<Node> nodes = new ArrayList<>();
-        for (int i = 0; i < trans.length; i++)
-            nodes.add(new Node(trans[i], null, null));
-
-        if (trans.length % 2 != 0)
-            nodes.add(new Node(trans[trans.length - 1], null, null)); // Duplicate of the last node
-
+        for (int i = 0; i < transactions.length; i++)
+            nodes.add(new Node(transactions[i], null, null));
+        if (transactions.length % 2 != 0)
+            nodes.add(new Node(transactions[transactions.length - 1], null, null)); // Duplicate of the last node
         createNodesRecursive(nodes);
     }
 
@@ -31,7 +29,6 @@ public class MerkleTree {
             root = nodes.get(0);
             return;
         }
-
         List<Node> parents = new ArrayList<>();
         for (int i = 0; i < nodes.size(); i += 2) {
             Node parent = new Node(nodes.get(i).getValue().concat(nodes.get(i + 1).getValue()), nodes.get(i), nodes.get(i + 1));
@@ -39,12 +36,10 @@ public class MerkleTree {
             nodes.get(i + 1).setParent(parent);
             parents.add(parent);
         }
-
         if (parents.size() > 1 && parents.size() % 2 != 0) {
             Node parent = new Node(nodes.get(nodes.size() - 1).getValue().concat(nodes.get(nodes.size() - 1).getValue()), null, null); // Duplicate of the last node, has no child
             parents.add(parent);
         }
-
         createNodesRecursive(parents);
     }
 
@@ -56,7 +51,6 @@ public class MerkleTree {
     public void printRecursive (Node current) {
         if (current == null)
             return;
-
         System.out.println(current.getValue() + "::" + current.getColourGroup());
         printRecursive(current.getLeft());
         printRecursive(current.getRight());
@@ -70,83 +64,99 @@ public class MerkleTree {
         this.transactions = transactions;
     }
 
-    public void colourSplitting(int[] colourSequence) {
+    public void validateTreeColouring() {
+        int[] sequence = new int[this.height + 1];
+        for (int i = 0; i < sequence.length; i++) {
+            sequence[i] = -2;
+        }
+        validateTreeColouringRecursive(this.root, 0, sequence);
+    }
+
+    public void validateTreeColouringRecursive(Node current, int height, int[] sequence) {
+        if (current == null)
+            return;
+        if (Arrays.stream(sequence).anyMatch(c -> c == current.getColourGroup()) || (current != this.root && current.getColourGroup() == -1)) {
+            System.out.println("Invalid colouring! Transaction: " + this.transactions.length);
+            Utility.printSequence(this.currentSequence);
+            return;
+        }
+        sequence[height] = current.getColourGroup();
+        validateTreeColouringRecursive(current.getLeft(), height + 1, sequence.clone());
+        validateTreeColouringRecursive(current.getRight(), height + 1, sequence.clone());
+    }
+
+    public void colourSplitting(int[] seq) {
         List<Colour> sequence = new ArrayList<>();
-        for (int i = 0; i < colourSequence.length; i++)
-            sequence.add(new Colour(i, colourSequence[i]));
+        for (int i = 0; i < seq.length; i++)
+            sequence.add(new Colour(i, seq[i]));
         this.currentSequence = sequence;
 
         int bottomNodes = this.transactions.length;
-        if (bottomNodes % 2 != 0) // The tree will automatically replicate the last transaction when applicable, but the initial transaction length remains the same
-            bottomNodes += 1;
         colourSplittingRecursive(this.root, this.height, sequence, bottomNodes);
     }
 
-    public void colourSplittingRecursive(Node node, int height, List<Colour> sequence, int bottomNodes) {
-        if (height >= 1) {
+    public void colourSplittingRecursive(Node node, int h, List<Colour> seq, int t) {
+        if (h >= 1) {
             Node left = node.getLeft();
             Node right = node.getRight();
             if (left != null && right != null) {
-                Colour c1 = sequence.get(0);
+                Colour c1 = seq.get(0);
                 if (c1.getCount() == 2) {
                     left.setColourGroup(c1.getColourCode());
                     right.setColourGroup(c1.getColourCode());
                 } else if (c1.getCount() == 1) { // Imperfect case
+                    int maxIdx = Utility.getMaxAvailableColourIndex(seq, t, h);
                     left.setColourGroup(c1.getColourCode());
-                    int maxIdx = getMaxAvailableColourIndex(sequence, bottomNodes, height);
-                    right.setColourGroup(sequence.get(maxIdx).getColourCode()); // get the colour-able colour with at highest position (highest index)
+                    right.setColourGroup(seq.get(maxIdx).getColourCode()); // get the colour-able colour with at highest position (highest index)
                 } else {
                     left.setColourGroup(c1.getColourCode());
-                    right.setColourGroup(sequence.get(1).getColourCode()); // second colour
+                    right.setColourGroup(seq.get(1).getColourCode()); // second colour
                 }
 
-                if (height >= 2) {
-                    List<Colour>[] sequences = feasibleSplit(height, sequence, bottomNodes);
-                    if (sequences == null) {
-                        Utility.printColourSequence(this.currentSequence);
+                if (h >= 2) {
+                    List<Colour>[] seqs = null;
+                    if (Utility.isPerfectTree(h, t))
+                        seqs = feasibleSplit(h, seq);
+                    else
+                        seqs = imperfectSplit(h, seq, t);
+
+                    if (seqs == null) {
+                        System.out.println("Cannot split correctly.");
+                        Utility.printSequence(this.currentSequence);
                         return;
                     }
-                    int leftBottomNodes = Utility.getLeftBottomNodes(height, bottomNodes);
-                    int rightBottomNodes = bottomNodes - leftBottomNodes;
 
-                    colourSplittingRecursive(left, height - 1, sequences[0], leftBottomNodes);
-                    colourSplittingRecursive(right, height - 1, sequences[1], rightBottomNodes);
+                    int leftBottomNodes = Utility.getLeftBottomNodes(h, t);
+                    int rightBottomNodes = t - leftBottomNodes;
+
+                    List<Colour> seqA = seqs[0];
+                    List<Colour> seqB = seqs[1];
+                    int[] tempSeqA = seqA.stream().mapToInt(e -> e.getCount()).toArray();
+                    int[] tempSeqB = seqB.stream().mapToInt(e -> e.getCount()).toArray();
+                    boolean isValidSA = Utility.isValidSequence(tempSeqA, leftBottomNodes, h - 1);
+                    boolean isValidSB = (rightBottomNodes > 0) ? Utility.isValidSequence(tempSeqB, rightBottomNodes, h - 1) : tempSeqB.length == 0;
+                    if (!(isValidSA && isValidSB)) {
+                        System.out.println("Invalid splitting!");
+                        return;
+                    }
+
+                    colourSplittingRecursive(left, h - 1, seqs[0], leftBottomNodes);
+                    colourSplittingRecursive(right, h - 1, seqs[1], rightBottomNodes);
                 }
             }
         }
     }
 
-    public List<Colour>[] feasibleSplit(int height, List<Colour> sequence, int bottomNodes) {
-        Colour c1 = sequence.get(0);
-        Colour c2 = sequence.get(1);
+    public List<Colour>[] feasibleSplit(int h, List<Colour> seq) {
+        Colour c1 = seq.get(0);
+        Colour c2 = seq.get(1);
         List<Colour> sequenceA = new ArrayList<>();
         List<Colour> sequenceB = new ArrayList<>();
-        int rightBottomNodes = Utility.getRightBottomNodes(height, bottomNodes);
-        boolean noRedistribution = false;
-        if (rightBottomNodes == 0) {
-            noRedistribution = true;
-            for (int i = 1; i < height; i++) {
-                Colour c = sequence.get(i);
-                if (c1.getCount() == 1) {
-                    int maxIdx = getMaxAvailableColourIndex(sequence, bottomNodes, height);
-                    if (i == maxIdx) // last colour
-                        sequenceA.add(new Colour(c.getColourCode(), c.getCount() - 1));
-                    else
-                        sequenceA.add(new Colour(c.getColourCode(), c.getCount()));
-                } else if (c1.getCount() == 2) {
-                    sequenceA.add(new Colour(c.getColourCode(), c.getCount()));
-                } else {
-                    if (i == 1) // second colour
-                        sequenceA.add(new Colour(c.getColourCode(), c.getCount() - 1));
-                    else
-                        sequenceA.add(new Colour(c.getColourCode(), c.getCount()));
-                }
-            }
-        } else if (c1.getCount() == 2) {
+        if (c1.getCount() == 2) {
             int sumA = 0;
             int sumB = 0;
-            for (int i = 1; i < height; i++) {
-                Colour c = sequence.get(i);
+            for (int i = 1; i < h; i++) {
+                Colour c = seq.get(i);
                 int a;
                 int b;
                 if (sumA < sumB) {
@@ -166,16 +176,16 @@ public class MerkleTree {
             int b2 = c1.getCount() - 1;
             sequenceA.add(new Colour(c2.getColourCode(), a2));
             sequenceB.add(new Colour(c1.getColourCode(), b2));
-            if (height >= 3) {
-                Colour c3 = sequence.get(2);
+            if (h >= 3) {
+                Colour c3 = seq.get(2);
                 int a3 = (int)Math.ceil((c3.getCount() + c1.getCount() - c2.getCount()) / 2.0);
                 int b3 = c2.getCount() - c1.getCount() + (int)Math.floor((c3.getCount() + c1.getCount() - c2.getCount()) / 2.0);
                 sequenceA.add(new Colour(c3.getColourCode(), a3));
                 sequenceB.add(new Colour(c3.getColourCode(), b3));
                 int sumA = a2 + a3;
                 int sumB = b2 + b3;
-                for (int i = 3; i < height; i++) {
-                    Colour ci = sequence.get(i);
+                for (int i = 3; i < h; i++) {
+                    Colour ci = seq.get(i);
                     int ai;
                     int bi;
                     if (sumA < sumB) {
@@ -192,183 +202,164 @@ public class MerkleTree {
                 }
             }
         }
-
-        List<Colour>[] result = new List[2];
         Collections.sort(sequenceA);
         Collections.sort(sequenceB);
+
+        List<Colour>[] result = new List[2];
         result[0] = sequenceA;
         result[1] = sequenceB;
+        return result;
+    }
 
-        boolean isPerfectTree = Utility.isPerfectTree(height, bottomNodes);
-        if (!isPerfectTree && !noRedistribution) { // If this is an imperfect tree, then redistribute the colour sequences
-            return redistributeSequences(height, bottomNodes, result);
+    public List<Colour>[] imperfectSplit(int h, List<Colour> seq, int t) {
+        Colour c1 = seq.get(0);
+        Colour c2 = seq.get(1);
+        List<Colour> sequenceA = new ArrayList<>();
+        List<Colour> sequenceB = new ArrayList<>();
+        int childH = h - 1;
+        int leftBottomNodes = Utility.getLeftBottomNodes(h, t);
+        int rightBottomNodes = t - leftBottomNodes;
+        if (rightBottomNodes == 0) { // When rightBottomNodes equals to 0, do not need to split, just reduce the colour(s) has been used to colour the current layer. Then add everything to the left branch sequence
+            if (c1.getCount() == 1) {
+                int maxIdx = Utility.getMaxAvailableColourIndex(seq, t, h);
+                for (int i = 1; i < h; i++) {
+                    if (i == maxIdx)
+                        sequenceA.add(new Colour(seq.get(i).getColourCode(), seq.get(i).getCount() - 1));
+                    else
+                        sequenceA.add(new Colour(seq.get(i).getColourCode(), seq.get(i).getCount()));
+                }
+            } else if (c1.getCount() == 2) {
+                for (int i = 1; i < h; i++) {
+                    sequenceA.add(new Colour(seq.get(i).getColourCode(), seq.get(i).getCount()));
+                }
+            } else {
+                System.out.println("This case does not suppose to be happened.");
+                return null;
+            }
+        } else { // When rightBottomNodes is greater than 0, left branch is always a perfect tree, and right branch is always an imperfect tree
+            if (c1.getCount() == 1) { // If c1 == 1, then minus 1 from the other selected colour. The rest is similar to c1 == 2
+                int maxIdx = Utility.getMaxAvailableColourIndex(seq, t, h);
+                int sumB = 0;
+                for (int i = 1; i < h; i++) {
+                    Colour c = seq.get(i);
+                    int available = c.getCount();
+                    if (i == maxIdx)
+                        available -= 1;
+                    int minReqNodes = (i == h - 1) ? Utility.getTotalNodes(rightBottomNodes, childH) : Utility.getRequiredNodesUpToDepth(rightBottomNodes, childH, i); // If this is the last colour, then take up to the total sequence required nodes. Else just up to the current depth required
+                    int toPick = minReqNodes - sumB;
+                    int actualPick = 0;
+                    if (available - toPick >= 2)
+                        actualPick = toPick;
+                    else
+                        actualPick = available - 2;
+                    sumB += actualPick;
+                    sequenceA.add(new Colour(c.getColourCode(), available - actualPick));
+                    sequenceB.add(new Colour(c.getColourCode(), actualPick));
+                }
+            } else if (c1.getCount() == 2) {
+                int sumB = 0;
+                for (int i = 1; i < h; i++) {
+                    Colour c = seq.get(i);
+                    int available = c.getCount();
+                    int minReqNodes = (i == h - 1) ? Utility.getTotalNodes(rightBottomNodes, childH) : Utility.getRequiredNodesUpToDepth(rightBottomNodes, childH, i); // If this is the last colour, then take up to the total sequence required nodes. Else just up to the current depth required
+                    int toPick = minReqNodes - sumB;
+                    int actualPick = 0;
+                    if (available - toPick >= 2)
+                        actualPick = toPick;
+                    else
+                        actualPick = available - 2;
+                    sumB += actualPick;
+                    sequenceA.add(new Colour(c.getColourCode(), available - actualPick));
+                    sequenceB.add(new Colour(c.getColourCode(), actualPick));
+                }
+            } else { // In this case, there is an initial colour and we cannot modify it. Thus, we need to check which layer that colour belongs to, then select colours for other layers
+                int sumB = 0;
+                int initIdx = 0;
+                int initBColourCount = c1.getCount() - 1;
+                int initBColourIdx = Utility.getInitColourIndex(rightBottomNodes, childH, initBColourCount);
+                boolean addedInitCount = false;
+                sequenceA.add(new Colour(c2.getColourCode(), c2.getCount() - 1));
+                sequenceB.add(new Colour(c1.getColourCode(), initBColourCount));
+                for (int i = 2; i < h; i++) { // ~ 3rd colour
+                    if (initIdx == initBColourIdx || (i == h - 1 && !addedInitCount)) {
+                        sumB += initBColourCount;
+                        initIdx++;
+                        addedInitCount = true;
+                    }
+                    Colour c = seq.get(i);
+                    int available = c.getCount();
+                    int minReqNodes = (i == h - 1) ? Utility.getTotalNodes(rightBottomNodes, childH) : Utility.getRequiredNodesUpToDepth(rightBottomNodes, childH, initIdx + 1); // If this is the last colour, then take up to the total sequence required nodes. Else just up to the current depth required
+                    int toPick = minReqNodes - sumB;
+                    int actualPick = 0;
+                    if (available - toPick >= 2)
+                        actualPick = toPick;
+                    else
+                        actualPick = available - 2;
+                    sumB += actualPick;
+                    sequenceA.add(new Colour(c.getColourCode(), available - actualPick));
+                    sequenceB.add(new Colour(c.getColourCode(), actualPick));
+                    initIdx++;
+                }
+            }
+        }
+        Collections.sort(sequenceA);
+        Collections.sort(sequenceB);
+        List<Colour>[] result = new List[2];
+        result[0] = sequenceA;
+        result[1] = sequenceB;
+        int sumB = sequenceB.stream().mapToInt(e -> e.getCount()).sum();
+        int totalBNodes = Utility.getTotalNodes(rightBottomNodes, childH);
+        if (sumB < totalBNodes) { // Do further redistribution to make sure both sequences are valid
+            int require = totalBNodes - sumB;
+            result = redistributeSequenceB(sequenceA, leftBottomNodes, sequenceB, rightBottomNodes, childH, require);
         }
         return result;
     }
 
-    /* Validate left sequence against C1 until finding the index of invalid colour, then redistribute from index 0 to that index
-    Sort and validate against feasible colour sequence after each redistribution */
-    public List<Colour>[] redistributeSequences(int height, int bottomNodes, List<Colour>[] sequences) {
-        int childHeight = height - 1;
-        int leftBottomNodes = Utility.getLeftBottomNodes(height, bottomNodes);
-        int rightBottomNodes = bottomNodes - leftBottomNodes;
-        int leftTotalNodes = Utility.calculateTreeNodes(leftBottomNodes, childHeight);
-        int totalRedistributionRequired = leftTotalNodes - sequences[0].stream().mapToInt(c -> c.getCount()).sum(); // total left node - total colour in left sequence
-        for (int i = 0; i < totalRedistributionRequired; i++) {
-            int invalidIndex = findC1InvalidIndex(sequences[0], leftBottomNodes, childHeight);
-            if (invalidIndex == -1) {
-                System.out.println("Something is wrong!");
+    public List<Colour>[] redistributeSequenceB(List<Colour> seqA, int tA, List<Colour> seqB, int tB, int h, int require) {
+        for (int i = 0; i < require; i++) {
+            int invalidIdx = Utility.findC1InvalidIndex(seqB, tB, h);
+            if (invalidIdx == -1) {
+                System.out.println("Cannot find invalid index.");
                 return null;
             }
-            // Take any possible colour from index 0 to invalidIndex from the right sequence
-            List<Integer> requiredColour = new ArrayList<>();
-            for (int j = 0; j <= invalidIndex; j++)
-                requiredColour.add(sequences[0].get(j).getColourCode());
 
-            Colour s1Colour = null;
-            Colour s2Colour = null;
-            boolean s2ValidC3 = Utility.validateAgainstCondition3(sequences[1].get(0).getCount(), rightBottomNodes, childHeight);
-            boolean s2ValidC4 = Utility.validateAgainstCondition4(sequences[1].get(0).getCount(), sequences[1].get(sequences[1].size() - 1).getCount(), rightBottomNodes, childHeight);
-            // We need to exhaust all the c1 in ascending order such that each colour if possible will have the number of colour equals to its depth required
-            if (!s2ValidC3) { // In this case, the first colour is too big, and the sequence is probably in a more balanced stage, start from ascending order to reduce the first possible colour
-                for (int k = 0; k < sequences[1].size(); k++) {
-                    Colour colour = sequences[1].get(k);
-                    int minPosition = getMinPossiblePositions(colour, sequences[1]);
-                    int maxPosition = getMaxPossiblePositions(colour, sequences[1]);
-                    int s2MinSum = sequences[1].stream().filter(c -> sequences[1].indexOf(c) <= minPosition).mapToInt(c -> c.getCount()).sum();
-                    int s2MaxSum = sequences[1].stream().filter(c -> sequences[1].indexOf(c) <= maxPosition).mapToInt(c -> c.getCount()).sum();
-                    int minS2ReqColour = Utility.getRequiredNodesUpToDepth(rightBottomNodes, childHeight, minPosition + 1);
-                    int maxS2ReqColour = Utility.getRequiredNodesUpToDepth(rightBottomNodes, childHeight, maxPosition + 1);
-                    if (requiredColour.contains(colour.getColourCode()) && s2MinSum > minS2ReqColour && s2MaxSum > maxS2ReqColour && colour.getCount() > 1) {
-                        s1Colour = sequences[0].stream().filter(c -> c.getColourCode() == colour.getColourCode()).findFirst().get();
-                        s2Colour = colour;
-                        break;
-                    }
-                }
-            } else { // Loop in reverse order to pick up the largest count colour, otherwise picking up from the smallest can break the 2nd sequence
-                if (!s2ValidC4) {
-                    int[] firstIndexes = getAllPossibleFirstColourIdx(sequences[1]);
-                    for (int k = 0; k < firstIndexes.length; k++) {
-                        Colour colour = sequences[1].get(k);
-                        int finalK = k;
-                        int s2Sum = sequences[1].stream().filter(c -> sequences[1].indexOf(c) <= finalK).mapToInt(c -> c.getCount()).sum();
-                        int s2ReqColour = Utility.getRequiredNodesUpToDepth(rightBottomNodes, childHeight, k + 1);
-                        if (requiredColour.contains(colour.getColourCode()) && s2Sum > s2ReqColour && colour.getCount() > 1) {
-                            Colour finalColour1 = colour;
-                            s1Colour = sequences[0].stream().filter(c -> c.getColourCode() == finalColour1.getColourCode()).findFirst().get();
-                            s2Colour = colour;
-                            break;
-                        }
-                    }
-                }
+            List<Integer> requiredColour = new ArrayList<>(); // Take any possible colour from index 0 to invalidIdx from the left sequence
+            for (int j = 0; j <= invalidIdx; j++)
+                requiredColour.add(seqB.get(j).getColourCode());
 
-                if (s1Colour == null || s2Colour == null) {
-                    for (int k = sequences[1].size() - 1; k >= 0; k--) {
-                        Colour colour = sequences[1].get(k);
-                        int finalK = k; // for stream() purpose only
-                        int s2Sum = sequences[1].stream().filter(c -> sequences[1].indexOf(c) <= finalK).mapToInt(c -> c.getCount()).sum();
-                        int s2ReqColour = Utility.getRequiredNodesUpToDepth(rightBottomNodes, childHeight, k + 1);
-                        if (requiredColour.contains(colour.getColourCode()) && s2Sum > s2ReqColour && colour.getCount() > 1) {
-                            s1Colour = sequences[0].stream().filter(c -> c.getColourCode() == colour.getColourCode()).findFirst().get();
-                            s2Colour = colour;
-                            break;
-                        }
-                    }
+            Colour seqAColour = null;
+            Colour seqBColour = null;
+            for (int k = seqA.size() - 1; k >= 0; k--) {
+                Colour c = seqA.get(k);
+                int minReqNodes = Utility.getRequiredNodesUpToDepth(tA, h, k);
+                int finalK = k;
+                int sumA = seqA.stream().filter(e -> seqA.indexOf(e) <= finalK).mapToInt(e -> e.getCount()).sum();
+                if (sumA > minReqNodes && requiredColour.contains(c.getColourCode())) {
+                    seqAColour = c;
+                    seqBColour = seqB.stream().filter(e -> e.getColourCode() == c.getColourCode()).findFirst().get();
+                    break;
                 }
             }
 
-            if (s1Colour == null) {
+            if (seqBColour == null) {
                 System.out.println("Cannot find suitable colour for redistribution!");
                 return null;
             }
-            s1Colour.setCount(s1Colour.getCount() + 1); // Increase 1 in sequence 1 and decrease 1 in sequence 2
-            s2Colour.setCount(s2Colour.getCount() - 1);
-            Collections.sort(sequences[0]);
-            Collections.sort(sequences[1]);
+
+            seqAColour.setCount(seqAColour.getCount() - 1);
+            seqBColour.setCount(seqBColour.getCount() + 1);
+            Collections.sort(seqA);
+            Collections.sort(seqB);
         }
-        int[] tempS1 = sequences[0].stream().mapToInt(c -> c.getCount()).toArray();
-        int[] tempS2 = sequences[1].stream().mapToInt(c -> c.getCount()).toArray();
-        boolean isValidS1 = Utility.isValidColourSequence(tempS1, leftBottomNodes, childHeight);
-        boolean isValidS2 = Utility.isValidColourSequence(tempS2, rightBottomNodes, childHeight);
-        if (!(isValidS1 && isValidS2)) {
-            System.out.println("Invalid redistribution!!");
-            return null;
-        }
-        return sequences;
+
+        List<Colour>[] result = new List[2];
+        result[0] = seqA;
+        result[1] = seqB;
+        return result;
     }
 
-    public void validateTreeColouring() {
-        int[] sequence = new int[this.height + 1];
-        for (int i = 0; i < sequence.length; i++) {
-            sequence[i] = -2;
-        }
-        validateTreeColouringRecursive(this.root, 0, sequence);
-    }
-
-    public void validateTreeColouringRecursive(Node current, int height, int[] sequence) {
-        if (current == null)
-            return;
-        if (Arrays.stream(sequence).anyMatch(c -> c == current.getColourGroup())) {
-            System.out.println("Invalid colouring!");
-            System.exit(2);
-        }
-        sequence[height] = current.getColourGroup();
-        validateTreeColouringRecursive(current.getLeft(), height + 1, sequence.clone());
-        validateTreeColouringRecursive(current.getRight(), height + 1, sequence.clone());
-    }
-
-    public int findC1InvalidIndex(List<Colour> sequence, int t, int h) {
-        int requiredSum = 0;
-        int actualSum = 0;
-        for (int i = 1; i <= h; i++ ) {
-            int requiredNodes = Utility.getRequiredNodesAtDepth(t, h, i);
-            requiredSum += requiredNodes;
-            actualSum += sequence.get(i - 1).getCount();
-            if (actualSum < requiredSum) {
-                return i - 1;
-            }
-        }
-        return -1; // -1 means no invalid index
-    }
-
-    public int getMinPossiblePositions(Colour colour, List<Colour> sequence) {
-        int min = sequence.indexOf(colour);
-        for (int i = 0; i < sequence.size(); i++) {
-            if (colour.getCount() == sequence.get(i).getCount()) {
-                min = i;
-                break;
-            }
-        }
-        return min;
-    }
-
-    public int getMaxPossiblePositions(Colour colour, List<Colour> sequence) {
-        int max = sequence.indexOf(colour);
-        for (int i = sequence.size() - 1; i >= 0; i--) {
-            if (colour.getCount() == sequence.get(i).getCount()) {
-                max = i;
-                break;
-            }
-        }
-        return max;
-    }
-
-    public int getMaxAvailableColourIndex(List<Colour> sequence, int t, int h) {
-        for (int i = sequence.size() - 1; i >= 0; i--) {
-            int minRequiredNode = Utility.getRequiredNodesAtDepth(t, h, i + 1);
-            if (sequence.get(i).getCount() > minRequiredNode)
-                return i;
-        }
-        return -1; // -1 means no invalid index
-    }
-
-    public int[] getAllPossibleFirstColourIdx(List<Colour> sequence) {
-        List<Integer> result = new ArrayList<>();
-        int first = 0;
-        for (int i = 0; i < sequence.size(); i++) {
-            if (sequence.get(i).getCount() == sequence.get(first).getCount())
-                result.add(i);
-        }
-        return result.stream().mapToInt(e -> e).toArray();
+    public List<Colour>[] redistributeSequenceA(List<Colour> seqA, int tA, List<Colour> seqB, int tB, int h) {
+        return null;
     }
 }

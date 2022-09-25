@@ -4,81 +4,81 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class Utility {
-    public static boolean isValidColourSequence(int[] sequence, int transactionCount, int height) {
-        boolean isSatisfiedCondition1 = validateAgainstCondition1(sequence, transactionCount, height);
-        boolean isSatisfiedCondition2 = Arrays.stream(sequence).sum() == calculateTreeNodes(transactionCount, height);
-        boolean isSatisfiedCondition3 = validateAgainstCondition3(sequence[0], transactionCount, height);
-        boolean isSatisfiedCondition4 = validateAgainstCondition4(sequence[0], sequence[sequence.length - 1], transactionCount, height);
-        boolean isSequenceSorted = isSequenceSorted(sequence);
-        return isSatisfiedCondition1 && isSatisfiedCondition2 && isSatisfiedCondition3 && isSatisfiedCondition4 && isSequenceSorted;
+    /*
+        * seq: colour sequence
+        * t: the number of transactions
+        * h: height of the tree
+     */
+    public static boolean isValidSequence(int[] seq, int t, int h) {
+        boolean validC1 = isValidCondition1(seq, t, h);
+        boolean validC2 = Arrays.stream(seq).sum() == getTotalNodes(t, h);
+        boolean validC3 = (h == 1) ? true : isValidCondition3(seq[0], t, h); // if h == 1, then if C1 and C2 are valid, then C3 && C4 is valid
+        boolean validC4 = (h == 1) ? true : isValidCondition4(seq[0], seq[seq.length - 1], t, h);
+        boolean isSequenceSorted = isSequenceSorted(seq);
+        return validC1 && validC2 && validC3 && validC4 && isSequenceSorted;
     }
 
-    public static boolean validateAgainstCondition1(int[] sequence, int transactionCount, int height) {
-        transactionCount = roundUpToEvenNumber(transactionCount);
+    public static boolean isValidCondition1(int[] seq, int t, int h) {
         int requiredSum = 0;
         int actualSum = 0;
-        for (int i = 1; i <= height; i++ ) {
-            int requiredNodes = getRequiredNodesAtDepth(transactionCount, height, i);
+        for (int i = 1; i <= h; i++ ) {
+            int requiredNodes = getRequiredNodesAtDepth(t, h, i);
             requiredSum += requiredNodes;
-            actualSum += sequence[i - 1];
-            if (actualSum < requiredSum) {
+            actualSum += seq[i - 1];
+            if (actualSum < requiredSum)
                 return false;
-            }
         }
         return true;
     }
 
-    public static boolean validateAgainstCondition3(int firstColour, int transactionCount, int height) {
-        int rightLeafNodes = getRightLeafNodes(transactionCount, height);
-        if (firstColour > (rightLeafNodes + 1))
+    // c1: the first colour
+    public static boolean isValidCondition3(int c1, int t, int h) {
+        int rightLeafNodes = getRightLeafNodes(t, h);
+        if (c1 > (rightLeafNodes + 1))
             return false;
         return true;
     }
 
-    public static boolean validateAgainstCondition4(int firstColour, int lastColour, int transactionCount, int height) {
-        int duplicateNodes = calculateDuplicateNodes(transactionCount, height);
-        int rightBottomNodes = getRightBottomNodes(height, transactionCount);
+    public static boolean isValidCondition4(int c1, int cn, int t, int h) {
+        int duplicateNodes = getDuplicateNodes(t, h);
+        int rightBottomNodes = getRightBottomNodes(h, t);
         int secondLastLayerReqNodes = (int)Math.ceil(rightBottomNodes / 2.0);
-        return (firstColour + lastColour) <= (transactionCount + duplicateNodes + secondLastLayerReqNodes + 1);
+        return (c1 + cn) <= (t + duplicateNodes + secondLastLayerReqNodes + 1);
     }
 
-    public static int getRightLeafNodes(int transactionCount, int height) {
-        transactionCount = roundUpToEvenNumber(transactionCount);
-        int leftBottomNodes = getLeftBottomNodes(height, transactionCount);
-        int rightBottomNodes = transactionCount - leftBottomNodes;
-        int rightLeafNodes = rightBottomNodes + calculateDuplicateNodes(transactionCount, height);
+    public static int getRightLeafNodes(int t, int h) {
+        int leftBottomNodes = getLeftBottomNodes(h, t);
+        int rightBottomNodes = t - leftBottomNodes;
+        int rightLeafNodes = rightBottomNodes + getDuplicateNodes(t, h);
         return rightLeafNodes;
     }
 
-    public static boolean isSequenceSorted(int[] sequence) {
-        for (int i = 0; i < sequence.length - 1; i++) {
-            if (sequence[i] > sequence[i + 1])
+    public static boolean isSequenceSorted(int[] seq) {
+        for (int i = 0; i < seq.length - 1; i++) {
+            if (seq[i] > seq[i + 1])
                 return false;
         }
         return true;
     }
 
     // This function will ignore the root node of the tree as this node will not be coloured
-    public static int calculateTreeNodes(int transactionCount, int height) {
-        transactionCount = roundUpToEvenNumber(transactionCount);
+    public static int getTotalNodes(int t, int h) {
         int sum = 0;
-        for (int i = 1; i <= height; i++ ) {
-            int requiredNodes = getRequiredNodesAtDepth(transactionCount, height, i);
+        for (int i = 1; i <= h; i++ ) {
+            int requiredNodes = getRequiredNodesAtDepth(t, h, i);
             sum += 2 * (int)Math.ceil(requiredNodes / 2.0); // Round up when the number of nodes is an odd number
         }
         return sum;
     }
 
-    // Duplicate nodes are nodes that being replicated itself (exclude nodes at highest depth)
-    public static int calculateDuplicateNodes(int transactionCount, int height) {
-        transactionCount = roundUpToEvenNumber(transactionCount);
+    // Duplicate nodes are nodes that being replicated itself
+    public static int getDuplicateNodes(int t, int h) {
         int duplicateNodes = 0;
-        for (int i = 1; i <= height; i++ ) {
-            int requiredNodes = getRequiredNodesAtDepth(transactionCount, height, i);
+        for (int i = 1; i <= h; i++ ) {
+            int requiredNodes = getRequiredNodesAtDepth(t, h, i);
             if (requiredNodes % 2 != 0)
                 duplicateNodes += 1;
         }
-
         return duplicateNodes;
     }
 
@@ -86,36 +86,36 @@ public class Utility {
         int result = number;
         if (result % 2 != 0)
             result += 1;
-
         return result;
     }
 
-    public static int getTreeHeight(int transactionCount) {
-        return (int)Math.ceil(Math.log(transactionCount) / Math.log(2));
+    public static int getTreeHeight(int t) {
+        return (int)Math.ceil(Math.log(t) / Math.log(2));
     }
 
     public static int getRequiredNodesAtDepth(int t, int h, int i) {
         return (int)Math.ceil(t / Math.pow(2, h - i));
     }
 
-    public static int getLeftBottomNodes(int height, int transactionCount) {
-        int expectedLeft = (int)(Math.pow(2, height) / 2);
-        if (transactionCount >= expectedLeft)
+    public static int getLeftBottomNodes(int h, int t) {
+        int expectedLeft = (int)(Math.pow(2, h) / 2.0);
+        if (t >= expectedLeft)
             return expectedLeft;
         else
-            return transactionCount;
+            return t;
     }
 
-    public static int getRightBottomNodes(int height, int transactionCount) {
-        int expectedLeft = (int)(Math.pow(2, height) / 2);
-        if (transactionCount > expectedLeft)
-            return transactionCount - expectedLeft;
+    public static int getRightBottomNodes(int h, int t) {
+        int expectedLeft = (int)(Math.pow(2, h) / 2);
+        if (t > expectedLeft)
+            return t - expectedLeft;
         else
             return 0;
     }
 
-    public static boolean isPerfectTree(int height, int transactionCount) {
-        return height == (Math.log(transactionCount) / Math.log(2));
+    public static boolean isPerfectTree(int h, int t) {
+        t = roundUpToEvenNumber(t);
+        return h == (Math.log(t) / Math.log(2));
     }
 
     public static int getRequiredNodesUpToDepth(int t, int h, int i) {
@@ -126,12 +126,44 @@ public class Utility {
         return sum;
     }
 
-    /*Generate feasible colour sequences*/
-    //return the list of all feasible sequences
+    public static int getMaxAvailableColourIndex(List<Colour> seq, int t, int h) {
+        for (int i = seq.size() - 1; i >= 0; i--) {
+            int minRequiredNode = Utility.getRequiredNodesAtDepth(t, h, i + 1);
+            if (seq.get(i).getCount() > minRequiredNode)
+                return i;
+        }
+        return -1; // -1 means no invalid index
+    }
+
+    public static int getInitColourIndex(int t, int h, int colourCount) {
+        for (int i = 0; i < h; i++) {
+            int minReqNode = getRequiredNodesAtDepth(t, h, i + 1);
+            if (colourCount < minReqNode)
+                return i - 1;
+        }
+        return h - 1;
+    }
+
+    public static int findC1InvalidIndex(List<Colour> seq, int t, int h) {
+        int requiredSum = 0;
+        int actualSum = 0;
+        for (int i = 1; i <= h; i++ ) {
+            int requiredNodes = Utility.getRequiredNodesAtDepth(t, h, i);
+            requiredSum += requiredNodes;
+            actualSum += seq.get(i - 1).getCount();
+            if (i == h)
+                requiredSum = getTotalNodes(t, h);
+            if (actualSum < requiredSum) {
+                return i - 1;
+            }
+        }
+        return -1; // -1 means no invalid index
+    }
+
+    /* Generate feasible colour sequences */
+    // return the list of all feasible sequences
     // Ref: https://github.com/csa2022/Color-Spliting-Algorithm-CSA/blob/1279c42b3be778199260b7893e799b3eca544bb5/CSA.java#L490
-    // t is the number of transaction transaction
     public static List<List<Colour>> getFeasibleSequenceList(int t){
-        t = roundUpToEvenNumber(t);
         int h = getTreeHeight(t);
         int m = 0;  //the current position of colour m
         List<Colour> sequence = new ArrayList<>(h);
@@ -147,13 +179,13 @@ public class Utility {
             for (int i = 0; i < h; i++)
                 tempSequence.add(new Colour(i, sequence.get(i).getCount()));
             int[] testSequence = tempSequence.stream().mapToInt(c -> c.getCount()).toArray();
-            if (isValidColourSequence(testSequence, t, h))
+            if (isValidSequence(testSequence, t, h))
                 sequenceList.add(tempSequence);
             return;
         }
 
         int currentSum = 0;
-        int sum = calculateTreeNodes(t, h);
+        int sum = getTotalNodes(t, h);
         for (int i = 0; i < m; i++)
             currentSum += sequence.get(i).getCount();
 
@@ -169,12 +201,12 @@ public class Utility {
         }
     }
 
-    public static void printColourSequence(List<Colour> sequence) {
+    public static void printSequence(List<Colour> sequence) {
         String text = "[" + sequence.stream().map(c -> String.valueOf(c.getCount())).collect(Collectors.joining(" ")) + "]";
         System.out.println(text);
     }
 
     public static void printSequenceList(List<List<Colour>> list) {
-        list.forEach(l -> printColourSequence(l));
+        list.forEach(l -> printSequence(l));
     }
 }
