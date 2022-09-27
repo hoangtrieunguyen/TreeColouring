@@ -133,10 +133,11 @@ public class MerkleTree {
                     List<Colour> seqB = seqs[1];
                     int[] tempSeqA = seqA.stream().mapToInt(e -> e.getCount()).toArray();
                     int[] tempSeqB = seqB.stream().mapToInt(e -> e.getCount()).toArray();
-                    boolean isValidSA = Utility.isValidSequence(tempSeqA, leftBottomNodes, h - 1);
-                    boolean isValidSB = (rightBottomNodes > 0) ? Utility.isValidSequence(tempSeqB, rightBottomNodes, h - 1) : tempSeqB.length == 0;
+                    boolean isValidSA = Utility.isValidSequenceExceptC5(tempSeqA, leftBottomNodes, h - 1);
+                    boolean isValidSB = (rightBottomNodes > 0) ? Utility.isValidSequenceExceptC5(tempSeqB, rightBottomNodes, h - 1) : tempSeqB.length == 0;
                     if (!(isValidSA && isValidSB)) {
                         System.out.println("Invalid splitting!");
+                        Utility.printSequence(this.currentSequence);
                         return;
                     }
 
@@ -240,40 +241,37 @@ public class MerkleTree {
             if (c1.getCount() == 1) { // If c1 == 1, then minus 1 from the other selected colour. The rest is similar to c1 == 2
                 int maxIdx = Utility.getMaxAvailableColourIndex(seq, t, h);
                 int sumB = 0;
+                int missing = 0; // Use to prevent the last colour will be over-picked, if there is an invalid colour in the middle, we should aware of that and redistribute later instead of over-picking and did not trigger the redistribution => create an invalid sequence
                 for (int i = 1; i < h; i++) {
                     Colour c = seq.get(i);
                     int available = c.getCount();
                     if (i == maxIdx)
                         available -= 1;
-                    int minReqNodes = (i == h - 1) ? Utility.getTotalNodes(rightBottomNodes, childH) : Utility.getRequiredNodesUpToDepth(rightBottomNodes, childH, i); // If this is the last colour, then take up to the total sequence required nodes. Else just up to the current depth required
+                    int minReqNodes = (i == h - 1) ? Utility.getTotalNodes(rightBottomNodes, childH) - missing : Utility.getRequiredNodesUpToDepth(rightBottomNodes, childH, i); // If this is the last colour, then take up to the total sequence required nodes. Else just up to the current depth required
                     int toPick = minReqNodes - sumB;
-                    int actualPick = 0;
-                    if (available - toPick >= 2)
-                        actualPick = toPick;
-                    else
-                        actualPick = available - 2;
+                    int actualPick = Utility.feasiblePick(sequenceA, leftBottomNodes, childH, c, toPick);
+                    missing = toPick - actualPick;
                     sumB += actualPick;
                     sequenceA.add(new Colour(c.getColourCode(), available - actualPick));
                     sequenceB.add(new Colour(c.getColourCode(), actualPick));
                 }
             } else if (c1.getCount() == 2) {
                 int sumB = 0;
+                int missing = 0;
                 for (int i = 1; i < h; i++) {
                     Colour c = seq.get(i);
                     int available = c.getCount();
-                    int minReqNodes = (i == h - 1) ? Utility.getTotalNodes(rightBottomNodes, childH) : Utility.getRequiredNodesUpToDepth(rightBottomNodes, childH, i); // If this is the last colour, then take up to the total sequence required nodes. Else just up to the current depth required
+                    int minReqNodes = (i == h - 1) ? Utility.getTotalNodes(rightBottomNodes, childH) - missing : Utility.getRequiredNodesUpToDepth(rightBottomNodes, childH, i); // If this is the last colour, then take up to the total sequence required nodes. Else just up to the current depth required
                     int toPick = minReqNodes - sumB;
-                    int actualPick = 0;
-                    if (available - toPick >= 2)
-                        actualPick = toPick;
-                    else
-                        actualPick = available - 2;
+                    int actualPick = Utility.feasiblePick(sequenceA, leftBottomNodes, childH, c, toPick);
+                    missing = toPick - actualPick;
                     sumB += actualPick;
                     sequenceA.add(new Colour(c.getColourCode(), available - actualPick));
                     sequenceB.add(new Colour(c.getColourCode(), actualPick));
                 }
             } else { // In this case, there is an initial colour and we cannot modify it. Thus, we need to check which layer that colour belongs to, then select colours for other layers
                 int sumB = 0;
+                int missing = 0;
                 int initIdx = 0;
                 int initBColourCount = c1.getCount() - 1;
                 int initBColourIdx = Utility.getInitColourIndex(rightBottomNodes, childH, initBColourCount);
@@ -288,13 +286,10 @@ public class MerkleTree {
                     }
                     Colour c = seq.get(i);
                     int available = c.getCount();
-                    int minReqNodes = (i == h - 1) ? Utility.getTotalNodes(rightBottomNodes, childH) : Utility.getRequiredNodesUpToDepth(rightBottomNodes, childH, initIdx + 1); // If this is the last colour, then take up to the total sequence required nodes. Else just up to the current depth required
+                    int minReqNodes = (i == h - 1) ? Utility.getTotalNodes(rightBottomNodes, childH) - missing : Utility.getRequiredNodesUpToDepth(rightBottomNodes, childH, initIdx + 1); // If this is the last colour, then take up to the total sequence required nodes. Else just up to the current depth required
                     int toPick = minReqNodes - sumB;
-                    int actualPick = 0;
-                    if (available - toPick >= 2)
-                        actualPick = toPick;
-                    else
-                        actualPick = available - 2;
+                    int actualPick = Utility.feasiblePick(sequenceA, leftBottomNodes, childH, c, toPick);
+                    missing = toPick - actualPick;
                     sumB += actualPick;
                     sequenceA.add(new Colour(c.getColourCode(), available - actualPick));
                     sequenceB.add(new Colour(c.getColourCode(), actualPick));
@@ -357,9 +352,5 @@ public class MerkleTree {
         result[0] = seqA;
         result[1] = seqB;
         return result;
-    }
-
-    public List<Colour>[] redistributeSequenceA(List<Colour> seqA, int tA, List<Colour> seqB, int tB, int h) {
-        return null;
     }
 }

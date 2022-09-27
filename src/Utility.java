@@ -1,5 +1,6 @@
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -12,8 +13,18 @@ public class Utility {
     public static boolean isValidSequence(int[] seq, int t, int h) {
         boolean validC1 = isValidCondition1(seq, t, h);
         boolean validC2 = Arrays.stream(seq).sum() == getTotalNodes(t, h);
-        boolean validC3 = (h == 1) ? true : isValidCondition3(seq[0], t, h); // if h == 1, then if C1 and C2 are valid, then C3 && C4 is valid
-        boolean validC4 = (h == 1) ? true : isValidCondition4(seq[0], seq[seq.length - 1], t, h);
+        boolean validC3 = h == 1 || isValidCondition3(seq[0], t, h); // if h == 1, then if C1 and C2 are valid, then C3 && C4 is valid
+        boolean validC4 = h == 1 || isValidCondition4(seq[0], seq[seq.length - 1], t, h);
+        boolean validC5 = isValidCondition5(seq, t, h);
+        boolean isSequenceSorted = isSequenceSorted(seq);
+        return validC1 && validC2 && validC3 && validC4 && validC5 && isSequenceSorted;
+    }
+
+    public static boolean isValidSequenceExceptC5(int[] seq, int t, int h) {
+        boolean validC1 = isValidCondition1(seq, t, h);
+        boolean validC2 = Arrays.stream(seq).sum() == getTotalNodes(t, h);
+        boolean validC3 = h == 1 || isValidCondition3(seq[0], t, h); // if h == 1, then if C1 and C2 are valid, then C3 && C4 is valid
+        boolean validC4 = h == 1 || isValidCondition4(seq[0], seq[seq.length - 1], t, h);
         boolean isSequenceSorted = isSequenceSorted(seq);
         return validC1 && validC2 && validC3 && validC4 && isSequenceSorted;
     }
@@ -44,6 +55,27 @@ public class Utility {
         int rightBottomNodes = getRightBottomNodes(h, t);
         int secondLastLayerReqNodes = (int)Math.ceil(rightBottomNodes / 2.0);
         return (c1 + cn) <= (t + duplicateNodes + secondLastLayerReqNodes + 1);
+    }
+
+    public static boolean isValidCondition5(int[] seq, int t, int h) {
+        if (h >= 4) {
+            int actualLeftSum = (seq[0] == 2) ? 0 : -1;
+            int expectedLeftSum = 0;
+            int leftBottomNodes = Utility.getLeftBottomNodes(h, t);
+            int rightBottomNodes = t - leftBottomNodes;
+            boolean isPerfect = isPerfectTree(h, t);
+            if (rightBottomNodes > 0 && !isPerfect) {
+                for (int i = 1; i < h - 1; i++) {
+                    int rightReqNodes = Utility.getRequiredNodesAtDepth(rightBottomNodes, h - 1, i);
+                    actualLeftSum += seq[i];
+                    actualLeftSum -= rightReqNodes;
+                    expectedLeftSum += Utility.getRequiredNodesAtDepth(leftBottomNodes, h - 1, i);
+                    if (actualLeftSum < expectedLeftSum)
+                        return false;
+                }
+            }
+        }
+        return true;
     }
 
     public static int getRightLeafNodes(int t, int h) {
@@ -158,6 +190,31 @@ public class Utility {
             }
         }
         return -1; // -1 means no invalid index
+    }
+
+    // Used to identify how many a colour from sequence A can be picked
+    // need: the number sequence B need to pick
+    public static int feasiblePick(List<Colour> seq, int t, int h, Colour colour, int need) {
+        seq.add(colour);
+        colour.setCount(colour.getCount() - need);
+        Collections.sort(seq);
+        int reqSum = 0;
+        int actualSum = 0;
+        int result = need;
+        for (int i = 0; i < seq.size(); i++) {
+            int reqNodes = Utility.getRequiredNodesAtDepth(t, h, i + 1);
+            reqSum += reqNodes;
+            actualSum += seq.get(i).getCount();
+            if (actualSum < reqSum) {
+                int diff = reqSum - actualSum;
+                result = need - diff;
+                break;
+            }
+        }
+
+        seq.remove(colour);
+        colour.setCount(colour.getCount() + need); // Reversed back to the original state
+        return result;
     }
 
     /* Generate feasible colour sequences */

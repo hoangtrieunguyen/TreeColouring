@@ -21,10 +21,10 @@ public class Program {
 
         int[] sequence = Arrays.stream(args[1].split(",")).mapToInt(Integer::parseInt).toArray();
         MerkleTree aTree = new MerkleTree(transactions);
-        //aTree.colourSplitting(sequence);
-        //aTree.validateTreeColouring();
+        aTree.colourSplitting(sequence);
+        aTree.validateTreeColouring();
 
-        for (int i = 30; i <= 30; i++) {
+        for (int i = 54; i <= 54; i++) {
             List<List<Colour>> list = Utility.getFeasibleSequenceList(i);
 
             transactions = new String[i];
@@ -33,8 +33,8 @@ public class Program {
 
             MerkleTree tree = new MerkleTree(transactions);
             for (List<Colour> seq: list) {
-                System.out.print("=======================================Tx: " + i);
-                Utility.printSequence(seq);
+                //System.out.print("=======================================Tx: " + i);
+                //Utility.printSequence(seq);
                 tree.colourSplitting(seq.stream().mapToInt(e -> e.getCount()).toArray());
                 tree.validateTreeColouring();
             }
