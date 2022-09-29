@@ -138,7 +138,8 @@ public class MerkleTree {
                     if (!(isValidSA && isValidSB)) {
                         System.out.println("Invalid splitting!");
                         Utility.printSequence(this.currentSequence);
-                        return;
+                        System.out.println("N: " + this.transactions.length);
+                        System.exit(2);
                     }
 
                     colourSplittingRecursive(left, h - 1, seqs[0], leftBottomNodes);

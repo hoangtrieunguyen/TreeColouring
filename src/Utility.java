@@ -195,6 +195,7 @@ public class Utility {
     // Used to identify how many a colour from sequence A can be picked
     // need: the number sequence B need to pick
     public static int feasiblePick(List<Colour> seq, int t, int h, Colour colour, int need) {
+        int originalVal = colour.getCount();
         seq.add(colour);
         colour.setCount(colour.getCount() - need);
         Collections.sort(seq);
@@ -207,13 +208,14 @@ public class Utility {
             actualSum += seq.get(i).getCount();
             if (actualSum < reqSum) {
                 int diff = reqSum - actualSum;
-                result = need - diff;
-                break;
+                result -= diff;
+                colour.setCount(colour.getCount() + diff);
+                Collections.sort(seq);
             }
         }
 
         seq.remove(colour);
-        colour.setCount(colour.getCount() + need); // Reversed back to the original state
+        colour.setCount(originalVal); // Reversed back to the original state
         return result;
     }
 

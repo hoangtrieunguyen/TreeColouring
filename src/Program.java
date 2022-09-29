@@ -24,7 +24,10 @@ public class Program {
         aTree.colourSplitting(sequence);
         aTree.validateTreeColouring();
 
-        for (int i = 54; i <= 54; i++) {
+        int h = 6;
+        for (int i = 66; i <= 128; i++) {
+            System.out.println("Current transaction length: " + i);
+            int n = (int)(Math.pow(2, h)/2 + Math.pow(2, h - i));
             List<List<Colour>> list = Utility.getFeasibleSequenceList(i);
 
             transactions = new String[i];
@@ -38,6 +41,7 @@ public class Program {
                 tree.colourSplitting(seq.stream().mapToInt(e -> e.getCount()).toArray());
                 tree.validateTreeColouring();
             }
+
         }
 
     }
