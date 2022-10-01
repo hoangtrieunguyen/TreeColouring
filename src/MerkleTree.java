@@ -123,7 +123,7 @@ public class MerkleTree {
                     if (seqs == null) {
                         System.out.println("Cannot split correctly.");
                         Utility.printSequence(this.currentSequence);
-                        return;
+                        System.exit(2);
                     }
 
                     int leftBottomNodes = Utility.getLeftBottomNodes(h, t);
@@ -313,16 +313,32 @@ public class MerkleTree {
     }
 
     public List<Colour>[] redistributeSequenceB(List<Colour> seqA, int tA, List<Colour> seqB, int tB, int h, int require) {
+        boolean excludeC1 = false;
         for (int i = 0; i < require; i++) {
             int invalidIdx = Utility.findC1InvalidIndex(seqB, tB, h);
+            // Check C3 abd C4 to see if colour 1 is valid for redistribution
+            if (h > 1 && !excludeC1) {
+                int c1 = seqB.get(0).getCount();
+                int cn = seqB.get(seqB.size() - 1).getCount();
+                int bRightLeafNodes = Utility.getRightLeafNodes(tB, h);
+                int bDuplicateNodes = Utility.getDuplicateNodes(tB, h);
+                int bRightBottomNodes = Utility.getRightBottomNodes(h, tB);
+                int secondLastLayerReqNodes = (int)Math.ceil(bRightBottomNodes / 2.0);
+                boolean isValidC3 = c1 < bRightLeafNodes + 1;
+                boolean isValidC4 = (c1 + cn) < bRightBottomNodes + bDuplicateNodes + secondLastLayerReqNodes + 1;
+                if (!isValidC3 || !isValidC4)
+                    excludeC1 = true;
+            }
+
             if (invalidIdx == -1) {
                 System.out.println("Cannot find invalid index.");
                 return null;
             }
 
             List<Integer> requiredColour = new ArrayList<>(); // Take any possible colour from index 0 to invalidIdx from the left sequence
-            for (int j = 0; j <= invalidIdx; j++)
+            for (int j = (excludeC1) ? 1 : 0; j <= invalidIdx; j++) {
                 requiredColour.add(seqB.get(j).getColourCode());
+            }
 
             Colour seqAColour = null;
             Colour seqBColour = null;

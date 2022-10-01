@@ -25,10 +25,11 @@ public class Program {
         aTree.validateTreeColouring();
 
         int h = 6;
-        for (int i = 66; i <= 128; i++) {
-            System.out.println("Current transaction length: " + i);
+        for (int i = 95; i <= 128; i++) {
             int n = (int)(Math.pow(2, h)/2 + Math.pow(2, h - i));
             List<List<Colour>> list = Utility.getFeasibleSequenceList(i);
+            System.out.println("Current transaction length: " + i + " --- Total sequences: " + list.size());
+            int count = 0;
 
             transactions = new String[i];
             for (int j = 0; j < i; j++)
@@ -36,10 +37,11 @@ public class Program {
 
             MerkleTree tree = new MerkleTree(transactions);
             for (List<Colour> seq: list) {
-                //System.out.print("=======================================Tx: " + i);
-                //Utility.printSequence(seq);
+                System.out.print(count + " ");
+                Utility.printSequence(seq);
                 tree.colourSplitting(seq.stream().mapToInt(e -> e.getCount()).toArray());
                 tree.validateTreeColouring();
+                count++;
             }
 
         }
