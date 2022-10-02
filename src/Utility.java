@@ -17,7 +17,8 @@ public class Utility {
         boolean validC4 = h == 1 || isValidCondition4(seq[0], seq[seq.length - 1], t, h);
         boolean validC5 = isValidCondition5(seq, t, h);
         boolean isSequenceSorted = isSequenceSorted(seq);
-        return validC1 && validC2 && validC3 && validC4 && validC5 && isSequenceSorted;
+        boolean validColours = checkInvalidColour(seq);
+        return validC1 && validC2 && validC3 && validC4 && validC5 && isSequenceSorted && validColours;
     }
 
     public static boolean isValidSequenceExceptC5(int[] seq, int t, int h) {
@@ -196,12 +197,14 @@ public class Utility {
     // need: the number sequence B need to pick
     public static int feasiblePick(List<Colour> seq, int t, int h, Colour colour, int need) {
         int originalVal = colour.getCount();
+        boolean isEnough = originalVal - need >= 2;
+        int newVal = isEnough ? (originalVal - need) : 2;
         seq.add(colour);
-        colour.setCount(colour.getCount() - need);
+        colour.setCount(newVal);
         Collections.sort(seq);
         int reqSum = 0;
         int actualSum = 0;
-        int result = need;
+        int result = isEnough ? need : (originalVal - 2);
         for (int i = 0; i < seq.size(); i++) {
             int reqNodes = Utility.getRequiredNodesAtDepth(t, h, i + 1);
             reqSum += reqNodes;
@@ -209,6 +212,10 @@ public class Utility {
             if (actualSum < reqSum) {
                 int diff = reqSum - actualSum;
                 result -= diff;
+                if (result <= 0) {
+                    System.out.println("Cannot pick this colour.");
+                    System.exit(2);
+                }
                 colour.setCount(colour.getCount() + diff);
                 Collections.sort(seq);
             }
@@ -217,6 +224,14 @@ public class Utility {
         seq.remove(colour);
         colour.setCount(originalVal); // Reversed back to the original state
         return result;
+    }
+
+    public static boolean checkInvalidColour(int[] seq) {
+        for (int i = 0; i < seq.length; i++) {
+            if (seq[i] <= 0)
+                return false;
+        }
+        return true;
     }
 
     /* Generate feasible colour sequences */
@@ -249,7 +264,7 @@ public class Utility {
             currentSum += sequence.get(i).getCount();
 
         int remainingSum = sum - currentSum;
-        int upperBound = (m == 0) ? (getRightLeafNodes(t, h) + 1) : (int)Math.floor(remainingSum / (double)(h - m)); // If first colour, then the upperBound is based on condition 3 (right leaf nodes + 1)
+        int upperBound = (m == 0) ? Math.min((getRightLeafNodes(t, h) + 1), (int)Math.floor(remainingSum / (double)(h - m))) : (int)Math.floor(remainingSum / (double)(h - m)); // If first colour, then the upperBound is based on condition 3 (right leaf nodes + 1)
         int lowerBound = (m == 0) ? getRequiredNodesUpToDepth(t, h, m + 1) : Math.max(getRequiredNodesUpToDepth(t, h, m + 1) - currentSum, sequence.get(m - 1).getCount());
         for (int cm = lowerBound; cm <= upperBound; cm++) {
             if (sequence.size() <= m)

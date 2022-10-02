@@ -307,12 +307,12 @@ public class MerkleTree {
         int totalBNodes = Utility.getTotalNodes(rightBottomNodes, childH);
         if (sumB < totalBNodes) { // Do further redistribution to make sure both sequences are valid
             int require = totalBNodes - sumB;
-            result = redistributeSequenceB(sequenceA, leftBottomNodes, sequenceB, rightBottomNodes, childH, require);
+            result = redistributeSequences(sequenceA, leftBottomNodes, sequenceB, rightBottomNodes, childH, require);
         }
         return result;
     }
 
-    public List<Colour>[] redistributeSequenceB(List<Colour> seqA, int tA, List<Colour> seqB, int tB, int h, int require) {
+    public List<Colour>[] redistributeSequences(List<Colour> seqA, int tA, List<Colour> seqB, int tB, int h, int require) {
         boolean excludeC1 = false;
         for (int i = 0; i < require; i++) {
             int invalidIdx = Utility.findC1InvalidIndex(seqB, tB, h);
@@ -325,8 +325,8 @@ public class MerkleTree {
                 int bRightBottomNodes = Utility.getRightBottomNodes(h, tB);
                 int secondLastLayerReqNodes = (int)Math.ceil(bRightBottomNodes / 2.0);
                 boolean isValidC3 = c1 < bRightLeafNodes + 1;
-                boolean isValidC4 = (c1 + cn) < bRightBottomNodes + bDuplicateNodes + secondLastLayerReqNodes + 1;
-                if (!isValidC3 || !isValidC4)
+                boolean isValidC4 = (c1 + cn) < tA + tB + bDuplicateNodes + secondLastLayerReqNodes + 1;
+                if (!isValidC3 || !isValidC4 || (bRightBottomNodes == 0 && c1 == 2))
                     excludeC1 = true;
             }
 

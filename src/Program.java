@@ -21,15 +21,22 @@ public class Program {
 
         int[] sequence = Arrays.stream(args[1].split(",")).mapToInt(Integer::parseInt).toArray();
         MerkleTree aTree = new MerkleTree(transactions);
-        aTree.colourSplitting(sequence);
-        aTree.validateTreeColouring();
+        //aTree.colourSplitting(sequence);
+        //aTree.validateTreeColouring();
 
-        int h = 6;
-        for (int i = 95; i <= 128; i++) {
-            int n = (int)(Math.pow(2, h)/2 + Math.pow(2, h - i));
+        int h = 12;
+        int min = (int)Math.pow(2, h - 1);
+        int max = (int)Math.pow(2, h);
+        for (int i = min; i <= max; i++) {
+            //int n = (int)(Math.pow(2, h)/2 + Math.pow(2, h - i));
             List<List<Colour>> list = Utility.getFeasibleSequenceList(i);
             System.out.println("Current transaction length: " + i + " --- Total sequences: " + list.size());
-            int count = 0;
+            if (list.size() == 0) {
+                System.out.println("Empty list. Exit.");
+                System.exit(2);
+            }
+
+            int count = 1;
 
             transactions = new String[i];
             for (int j = 0; j < i; j++)

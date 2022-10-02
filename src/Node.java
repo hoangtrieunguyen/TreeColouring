@@ -10,8 +10,7 @@ public class Node {
     private int colourGroup;
 
     public Node(String value, Node left, Node right) {
-        this.value = value;
-        //this.value = getSHA256Hash(value); // Use getSHA256Hash for hash
+        this.value = getSHA256Hash(value); // Use getSHA256Hash for hash
         this.left = left;
         this.right = right;
         this.colourGroup = -1;
