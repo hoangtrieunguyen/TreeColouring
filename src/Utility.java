@@ -27,7 +27,8 @@ public class Utility {
         boolean validC3 = h == 1 || isValidCondition3(seq[0], t, h); // if h == 1, then if C1 and C2 are valid, then C3 && C4 is valid
         boolean validC4 = h == 1 || isValidCondition4(seq[0], seq[seq.length - 1], t, h);
         boolean isSequenceSorted = isSequenceSorted(seq);
-        return validC1 && validC2 && validC3 && validC4 && isSequenceSorted;
+        boolean validColours = checkInvalidColour(seq);
+        return validC1 && validC2 && validC3 && validC4 && isSequenceSorted && validColours;
     }
 
     public static boolean isValidCondition1(int[] seq, int t, int h) {
@@ -236,17 +237,20 @@ public class Utility {
 
     /* Generate feasible colour sequences */
     // return the list of all feasible sequences
-    // Ref: https://github.com/csa2022/Color-Spliting-Algorithm-CSA/blob/1279c42b3be778199260b7893e799b3eca544bb5/CSA.java#L490
-    public static List<List<Colour>> getFeasibleSequenceList(int t){
+    // Ref: https://github.com/csa2022/Color-Spliting-Algorithm-CSA/blob/1279c42b3be778199260b7893e799b3eca544bb5/CSA.java#L490 with some modifications
+    // Mode 0: Generate all sequences
+    // Mode 1: Generate the layer-based sequence
+    // Mode 2: Generate the most balanced sequence
+    public static List<List<Colour>> getFeasibleSequenceList(int t, int mode){
         int h = getTreeHeight(t);
         int m = 0;  //the current position of colour m
         List<Colour> sequence = new ArrayList<>(h);
         List<List<Colour>> sequenceList = new ArrayList<>();
-        feasibleSequenceListRecursive(sequenceList, sequence, m, h, t);
+        feasibleSequenceListRecursive(sequenceList, sequence, m, h, t, mode);
         return sequenceList;
     }
 
-    public static void feasibleSequenceListRecursive(List<List<Colour>> sequenceList, List<Colour> sequence, int m, int h, int t) {
+    public static void feasibleSequenceListRecursive(List<List<Colour>> sequenceList, List<Colour> sequence, int m, int h, int t, int mode) {
         // If sequence is complete, then add it to the sequenceList
         if (m == h) {
             List<Colour> tempSequence = new ArrayList<>(h);
@@ -266,12 +270,21 @@ public class Utility {
         int remainingSum = sum - currentSum;
         int upperBound = (m == 0) ? Math.min((getRightLeafNodes(t, h) + 1), (int)Math.floor(remainingSum / (double)(h - m))) : (int)Math.floor(remainingSum / (double)(h - m)); // If first colour, then the upperBound is based on condition 3 (right leaf nodes + 1)
         int lowerBound = (m == 0) ? getRequiredNodesUpToDepth(t, h, m + 1) : Math.max(getRequiredNodesUpToDepth(t, h, m + 1) - currentSum, sequence.get(m - 1).getCount());
-        for (int cm = lowerBound; cm <= upperBound; cm++) {
+        int start = lowerBound;
+        int end = upperBound;
+        if (mode == 1) {
+            start = lowerBound;
+            end = (m == h - 1) ? upperBound : lowerBound;
+        } else if (mode == 2) {
+            start= upperBound;
+            end = upperBound;
+        }
+        for (int cm = start; cm <= end; cm++) {
             if (sequence.size() <= m)
                 sequence.add(m, new Colour(m, cm));
             else
                 sequence.set(m, new Colour(m, cm));
-            feasibleSequenceListRecursive(sequenceList, sequence, m + 1, h, t);
+            feasibleSequenceListRecursive(sequenceList, sequence, m + 1, h, t, mode);
         }
     }
 

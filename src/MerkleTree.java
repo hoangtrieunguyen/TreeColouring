@@ -78,7 +78,7 @@ public class MerkleTree {
         if (Arrays.stream(sequence).anyMatch(c -> c == current.getColourGroup()) || (current != this.root && current.getColourGroup() == -1)) {
             System.out.println("Invalid colouring! Transaction: " + this.transactions.length);
             Utility.printSequence(this.currentSequence);
-            return;
+            System.exit(2);
         }
         sequence[height] = current.getColourGroup();
         validateTreeColouringRecursive(current.getLeft(), height + 1, sequence.clone());
