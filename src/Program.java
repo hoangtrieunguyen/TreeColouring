@@ -19,12 +19,12 @@ public class Program {
         for (int i = 0; i < transactions.length; i++)
             transactions[i] = String.valueOf(i);
 
-        //int[] sequence = Arrays.stream(args[1].split(",")).mapToInt(Integer::parseInt).toArray();
-        //MerkleTree aTree = new MerkleTree(transactions);
-        //aTree.colourSplitting(sequence);
-        //aTree.validateTreeColouring();
-
-        int h = 16;
+        int[] sequence = Arrays.stream(args[1].split(",")).mapToInt(Integer::parseInt).toArray();
+        MerkleTree aTree = new MerkleTree(transactions);
+        aTree.colourSplitting(sequence);
+        aTree.validateTreeColouring();
+        /*
+        int h = 5;
         int t1 = (int)Math.pow(2, h - 1) + 2;
         int t2 = (int)Math.pow(2, h - 1) + (int)Math.pow(2, h - 2);
         int t3 = (int)Math.pow(2, h);
@@ -57,6 +57,8 @@ public class Program {
                 tree.validateTreeColouring();
             }
         }
+
+        */
 
     }
 }
